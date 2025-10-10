@@ -1,4 +1,5 @@
-import { requireSession } from "../lib/auth";
+import { redirect } from "next/navigation";
+import { getUserOrgCount, requireSession } from "../lib/auth";
 import { OrgSwitcher } from "../components/OrgSwitcher";
 import { LayerPanel } from "../components/LayerPanel";
 import { EditToolbar } from "../components/EditToolbar";
@@ -8,6 +9,11 @@ import { Toasts } from "../components/Toasts";
 
 export default async function HomePage() {
   await requireSession();
+  const membershipCount = await getUserOrgCount();
+
+  if (!membershipCount) {
+    redirect("/onboarding");
+  }
 
   return (
     <main
