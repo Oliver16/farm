@@ -85,8 +85,8 @@ export const FarmDrawMap = ({ onFeatureChange }: FarmDrawMapProps) => {
       });
 
       if (first?.id) {
-        const firstId = String(first.id);
-        drawRef.current?.changeMode("simple_select", { featureIds: [firstId] });
+        const featureId = String(first.id);
+        drawRef.current?.changeMode("simple_select", { featureIds: [featureId] });
       }
 
       syncFeature();

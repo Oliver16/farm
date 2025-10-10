@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import type { PostgrestMaybeSingleResponse } from "@supabase/supabase-js";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { isRasterId, registry } from "@/lib/config";
 import { createCogTileJsonUrl } from "@/lib/config/rasters";
@@ -31,14 +32,12 @@ export async function GET(
   }
 
   const client = createServiceRoleSupabaseClient();
-  const { data, error } = await client
+  const { data, error }: PostgrestMaybeSingleResponse<RasterRow> = await client
     .from("rasters")
     .select("id, org_id, bucket, key, s3_url")
     .eq("id", id)
     .eq("org_id", orgId)
     .maybeSingle<RasterRow>();
-
-  const raster = data as RasterRow | null;
 
   if (error) {
     return errorResponse(500, "SUPABASE_ERROR", error.message ?? "Failed to load raster");
