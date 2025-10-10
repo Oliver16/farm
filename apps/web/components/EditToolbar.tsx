@@ -2,10 +2,30 @@
 
 import { useCallback } from "react";
 import { useAppStore } from "../lib/store";
+import styles from "./EditToolbar.module.css";
 
 const dispatchMapEvent = (type: string, detail?: unknown) => {
   window.dispatchEvent(new CustomEvent(type, { detail }));
 };
+
+const actionButtons = [
+  {
+    label: "Draw",
+    onClick: () => dispatchMapEvent("map:draw:start", { mode: "draw_polygon" })
+  },
+  {
+    label: "Edit",
+    onClick: () => dispatchMapEvent("map:draw:start", { mode: "direct_select" })
+  },
+  {
+    label: "Delete",
+    onClick: () => dispatchMapEvent("map:draw:delete")
+  },
+  {
+    label: "Cancel",
+    onClick: () => dispatchMapEvent("map:draw:cancel")
+  }
+];
 
 export const EditToolbar = () => {
   const editMode = useAppStore((state) => state.editMode);
@@ -19,80 +39,65 @@ export const EditToolbar = () => {
   }, [editMode, setEditMode]);
 
   const disabled = !activeOrgId || !activeLayerId;
+  const isEditMode = editMode === "edit";
+  const saveDisabled = disabled || !isEditMode || !drawDirty;
 
   return (
-    <section aria-labelledby="edit-toolbar-heading">
-      <h2 id="edit-toolbar-heading" style={{ margin: 0 }}>
+    <section className={styles.section} aria-labelledby="edit-toolbar-heading">
+      <h2 id="edit-toolbar-heading" className={styles.heading}>
         Edit Mode
       </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      <div className={styles.controls}>
         <button
           type="button"
           onClick={toggleMode}
           disabled={disabled}
-          className="focus-ring"
-          style={{
-            padding: "0.5rem 0.75rem",
-            borderRadius: "0.5rem",
-            border: "1px solid rgba(255,255,255,0.2)",
-            background: editMode === "edit" ? "#22c55e" : "transparent",
-            color: editMode === "edit" ? "#022c22" : "inherit",
-            cursor: disabled ? "not-allowed" : "pointer"
-          }}
+          role="switch"
+          aria-checked={isEditMode}
+          aria-label={isEditMode ? "Switch to view mode" : "Switch to edit mode"}
+          className={`${styles.modeToggle} focus-ring`}
+          data-state={isEditMode ? "edit" : "view"}
         >
-          {editMode === "edit" ? "Switch to View" : "Switch to Edit"}
+          <span className={styles.modeToggleLabel}>
+            {isEditMode ? "Editing" : "Viewing"}
+            <span>{isEditMode ? "Tap to exit" : "Tap to start"}</span>
+          </span>
+          <span className={styles.modeToggleIndicator} aria-hidden="true">
+            <span className={styles.modeToggleThumb} />
+          </span>
         </button>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: "0.5rem"
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => dispatchMapEvent("map:draw:start", { mode: "draw_polygon" })}
-            disabled={disabled || editMode !== "edit"}
-          >
-            Draw
-          </button>
-          <button
-            type="button"
-            onClick={() => dispatchMapEvent("map:draw:start", { mode: "direct_select" })}
-            disabled={disabled || editMode !== "edit"}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => dispatchMapEvent("map:draw:delete")}
-            disabled={disabled || editMode !== "edit"}
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={() => dispatchMapEvent("map:draw:cancel")}
-            disabled={disabled || editMode !== "edit"}
-          >
-            Cancel
-          </button>
+
+        <div className={styles.actionGrid}>
+          {actionButtons.map(({ label, onClick }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={onClick}
+              disabled={disabled || !isEditMode}
+              className={`${styles.toolbarButton} focus-ring`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <button
-          type="button"
-          onClick={() => dispatchMapEvent("map:draw:save")}
-          disabled={disabled || editMode !== "edit" || !drawDirty}
-          style={{
-            padding: "0.5rem 0.75rem",
-            borderRadius: "0.5rem",
-            border: "1px solid rgba(34,197,94,0.6)",
-            background: drawDirty ? "#22c55e" : "transparent",
-            color: drawDirty ? "#022c22" : "inherit",
-            cursor: disabled || editMode !== "edit" || !drawDirty ? "not-allowed" : "pointer"
-          }}
-        >
-          Save Changes
-        </button>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => dispatchMapEvent("map:draw:save")}
+            disabled={saveDisabled}
+            className={`${styles.toolbarButton} focus-ring`}
+            data-variant="primary"
+            data-state={drawDirty ? "active" : "inactive"}
+          >
+            Save Changes
+          </button>
+          <p className={styles.helperText}>
+            {saveDisabled
+              ? "Changes become available once you have edits to review."
+              : "Ready to publish your latest field updates."}
+          </p>
+        </div>
       </div>
     </section>
   );
