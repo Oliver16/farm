@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServiceRoleSupabaseClient } from "../../../../../lib/supabase";
-import {
-  isRasterId,
-  registry
-} from "../../../../../lib/config";
-import { createCogTileJsonUrl } from "../../../../../lib/config/rasters";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
+import { isRasterId, registry } from "@/lib/config";
+import { createCogTileJsonUrl } from "@/lib/config/rasters";
 
 type RasterRow = {
   id: string;
