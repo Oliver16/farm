@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import MapboxDraw from "maplibre-gl-draw";
+import type MapboxDraw from "@mapbox/mapbox-gl-draw";
+import Draw from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { registry } from "@/lib/config";
 
@@ -44,7 +45,7 @@ export const FarmDrawMap = ({ onFeatureChange }: FarmDrawMapProps) => {
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    const draw = new MapboxDraw({
+    const draw = new Draw({
       displayControlsDefault: false,
       controls: {
         polygon: true,
