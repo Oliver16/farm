@@ -9,9 +9,9 @@ import { Toasts } from "../components/Toasts";
 
 export default async function HomePage() {
   await requireSession();
-  const membershipCount = await getUserOrgCount();
+  const accessibleOrgCount = await getUserOrgCount();
 
-  if (!membershipCount) {
+  if (!accessibleOrgCount) {
     redirect("/onboarding");
   }
 
