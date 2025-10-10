@@ -29,26 +29,9 @@ export const getUserOrgCount = async () => {
   const supabase = createServerSupabaseClient();
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
-  const { data, error } = await supabase
-    .from("farms")
-    .select("org_id");
 
-  if (error) {
-    throw error;
-  }
-
-  type FarmRow = { org_id: string | null };
-  const farms = (data ?? []) as FarmRow[];
-  const orgIds = new Set<string>();
-
-  for (const farm of farms) {
-    if (typeof farm.org_id === "string" && farm.org_id.length > 0) {
-      orgIds.add(farm.org_id);
-    }
-  }
-
-  if (orgIds.size > 0 || !userId) {
-    return orgIds.size;
+  if (!userId) {
+    return 0;
   }
 
   const serviceClient = createServiceRoleSupabaseClient();
@@ -58,9 +41,58 @@ export const getUserOrgCount = async () => {
     throw new Error(superuserResult.error.message);
   }
 
+  type OrgIdRow = { id?: string | null; org_id?: string | null };
+  let orgIds: string[] = [];
+
   if (superuserResult.isSuperuser) {
-    return 1;
+    const { data, error } = await serviceClient
+      .from("organizations")
+      .select("id");
+
+    if (error) {
+      throw error;
+    }
+
+    orgIds = ((data ?? []) as OrgIdRow[])
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  } else {
+    const { data, error } = await serviceClient
+      .from("org_memberships")
+      .select("org_id")
+      .eq("user_id", userId);
+
+    if (error) {
+      throw error;
+    }
+
+    orgIds = ((data ?? []) as OrgIdRow[])
+      .map((row) => row.org_id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
   }
 
-  return 0;
+  if (orgIds.length === 0) {
+    return 0;
+  }
+
+  const { data: farmData, error: farmError } = await serviceClient
+    .from("farms")
+    .select("org_id")
+    .in("org_id", orgIds);
+
+  if (farmError) {
+    throw farmError;
+  }
+
+  type FarmRow = { org_id: string | null };
+  const farms = (farmData ?? []) as FarmRow[];
+  const accessibleOrgIds = new Set<string>();
+
+  for (const farm of farms) {
+    if (typeof farm.org_id === "string" && farm.org_id.length > 0) {
+      accessibleOrgIds.add(farm.org_id);
+    }
+  }
+
+  return accessibleOrgIds.size;
 };
