@@ -2,15 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const rpcMock = vi.fn();
+const superuserQuery = {
+  select: vi.fn(),
+  eq: vi.fn(),
+  maybeSingle: vi.fn()
+};
 const membershipQuery = {
   select: vi.fn(),
   eq: vi.fn(),
   maybeSingle: vi.fn()
 };
-membershipQuery.select.mockReturnValue(membershipQuery);
-membershipQuery.eq.mockReturnValue(membershipQuery);
 
-const fromMock = vi.fn(() => membershipQuery);
+const fromMock = vi.fn((table: string) => {
+  if (table === "superusers") {
+    return superuserQuery;
+  }
+  if (table === "org_memberships") {
+    return membershipQuery;
+  }
+  return membershipQuery;
+});
 const client = { rpc: rpcMock, from: fromMock };
 
 vi.mock("@/lib/supabase/service-role", () => ({
@@ -28,10 +39,21 @@ import { DELETE, POST } from "./route";
 describe("write route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    superuserQuery.select.mockReturnValue(superuserQuery);
+    superuserQuery.eq.mockReturnValue(superuserQuery);
+    superuserQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
     membershipQuery.select.mockReturnValue(membershipQuery);
     membershipQuery.eq.mockReturnValue(membershipQuery);
-    membershipQuery.maybeSingle.mockResolvedValue({ data: { user_id: "user" }, error: null });
-    fromMock.mockReturnValue(membershipQuery);
+    membershipQuery.maybeSingle.mockResolvedValue({ data: { role: "viewer" }, error: null });
+    fromMock.mockImplementation((table: string) => {
+      if (table === "superusers") {
+        return superuserQuery;
+      }
+      if (table === "org_memberships") {
+        return membershipQuery;
+      }
+      return membershipQuery;
+    });
     (getServerSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       user: { id: "user" }
     });
@@ -59,6 +81,7 @@ describe("write route", () => {
       props_json: body.properties
     });
     expect(response.status).toBe(200);
+    expect(fromMock).toHaveBeenCalledWith("superusers");
     expect(fromMock).toHaveBeenCalledWith("org_memberships");
   });
 
@@ -73,6 +96,7 @@ describe("write route", () => {
 
     expect(clientInstance.rpc).toHaveBeenCalledWith("farms_delete", { rid: "123", org_id: "456" });
     expect(response.status).toBe(200);
+    expect(fromMock).toHaveBeenCalledWith("superusers");
     expect(fromMock).toHaveBeenCalledWith("org_memberships");
   });
 

@@ -4,6 +4,7 @@ import { isLayerId, registry } from "@/lib/config";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { getServerSession } from "@/lib/auth";
 import { payloadSchema } from "@/lib/validation";
+import { getOrgAccess } from "@/lib/orgs";
 
 const errorResponse = (code: string, message: string, status = 400) =>
   NextResponse.json({ error: { code, message } }, { status });
@@ -13,22 +14,12 @@ const ensureOrgMembership = async (
   orgId: string,
   userId: string
 ) => {
-  const { data, error } = await client
-    .from("org_memberships")
-    .select("user_id")
-    .eq("org_id", orgId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    return errorResponse(
-      error.code ?? "MEMBERSHIP_CHECK_FAILED",
-      error.message ?? "Unable to verify organization membership",
-      500
-    );
+  const result = await getOrgAccess(client, orgId, userId);
+  if (result.error) {
+    return errorResponse(result.error.code, result.error.message, result.error.status ?? 500);
   }
 
-  if (!data) {
+  if (!result.access || (!result.access.isSuperuser && !result.access.role)) {
     return errorResponse("RLS_DENIED", "User not in org", 403);
   }
 

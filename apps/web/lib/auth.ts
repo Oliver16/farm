@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "./supabase/server";
+import { createServiceRoleSupabaseClient } from "./supabase/service-role";
+import { checkSuperuser } from "./orgs";
 
 export interface SessionUser {
   id: string;
@@ -25,6 +27,8 @@ export const requireSession = async () => {
 // flow.
 export const getUserOrgCount = async () => {
   const supabase = createServerSupabaseClient();
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
   const { data, error } = await supabase
     .from("farms")
     .select("org_id");
@@ -43,5 +47,20 @@ export const getUserOrgCount = async () => {
     }
   }
 
-  return orgIds.size;
+  if (orgIds.size > 0 || !userId) {
+    return orgIds.size;
+  }
+
+  const serviceClient = createServiceRoleSupabaseClient();
+  const superuserResult = await checkSuperuser(serviceClient, userId);
+
+  if (superuserResult.error) {
+    throw new Error(superuserResult.error.message);
+  }
+
+  if (superuserResult.isSuperuser) {
+    return 1;
+  }
+
+  return 0;
 };

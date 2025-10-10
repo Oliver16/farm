@@ -1,17 +1,31 @@
 -- Row level security policies enforcing organization membership and roles
 
-CREATE OR REPLACE FUNCTION has_org_role(target_org_id UUID, allowed_roles org_role[])
+CREATE OR REPLACE FUNCTION is_superuser(check_user UUID DEFAULT auth.uid())
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 AS $$
     SELECT EXISTS (
         SELECT 1
-        FROM org_memberships m
-        WHERE m.org_id = target_org_id
-          AND m.user_id = auth.uid()
-          AND m.role = ANY(allowed_roles)
+        FROM superusers s
+        WHERE s.user_id = check_user
     );
+$$;
+
+CREATE OR REPLACE FUNCTION has_org_role(target_org_id UUID, allowed_roles org_role[])
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        is_superuser()
+        OR EXISTS (
+            SELECT 1
+            FROM org_memberships m
+            WHERE m.org_id = target_org_id
+              AND m.user_id = auth.uid()
+              AND m.role = ANY(allowed_roles)
+        );
 $$;
 
 CREATE OR REPLACE FUNCTION is_org_member(target_org_id UUID)
@@ -19,12 +33,14 @@ RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM org_memberships m
-        WHERE m.org_id = target_org_id
-          AND m.user_id = auth.uid()
-    );
+    SELECT
+        is_superuser()
+        OR EXISTS (
+            SELECT 1
+            FROM org_memberships m
+            WHERE m.org_id = target_org_id
+              AND m.user_id = auth.uid()
+        );
 $$;
 
 -- Enable RLS on asset tables

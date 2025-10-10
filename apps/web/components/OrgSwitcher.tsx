@@ -2,52 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSupabase } from "./AppProviders";
+import useSWR from "swr";
 import { useAppStore } from "../lib/store";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface OrgRecord {
-  org_id: string;
-  organizations: {
-    name: string;
-  } | null;
+  id: string;
+  name: string;
 }
 
-const parseOrgRecord = (row: unknown): OrgRecord | null => {
-  if (!row || typeof row !== "object") {
-    return null;
-  }
-
-  const record = row as Record<string, unknown>;
-  const orgId = record.org_id;
-  if (typeof orgId !== "string") {
-    return null;
-  }
-
-  const organizationsValue = record.organizations;
-  if (organizationsValue && typeof organizationsValue === "object") {
-    const name = (organizationsValue as Record<string, unknown>).name;
-    if (typeof name === "string") {
-      return {
-        org_id: orgId,
-        organizations: { name }
-      };
-    }
-  }
-
-  return {
-    org_id: orgId,
-    organizations: null
-  };
-};
+interface OrgListResponse {
+  orgs: OrgRecord[];
+}
 
 export const OrgSwitcher = () => {
-  const supabase = useSupabase();
   const activeOrgId = useAppStore((state) => state.activeOrgId);
   const setActiveOrgId = useAppStore((state) => state.setActiveOrgId);
   const pushToast = useAppStore((state) => state.pushToast);
-  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
+  const { data, error, isLoading } = useSWR<OrgListResponse>("/api/orgs", jsonFetcher);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("activeOrgId");
@@ -57,34 +31,27 @@ export const OrgSwitcher = () => {
   }, [setActiveOrgId]);
 
   useEffect(() => {
-    const fetchOrgs = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("org_memberships")
-        .select("org_id, organizations(name)");
+    if (error) {
+      pushToast({ type: "error", message: error.message });
+      setOrgs([]);
+      return;
+    }
 
-      if (error) {
-        pushToast({ type: "error", message: error.message });
-      } else {
-        const records = (Array.isArray(data) ? data : [])
-          .map(parseOrgRecord)
-          .filter((record): record is OrgRecord => record !== null);
-        setOrgs(records);
-        if (!activeOrgId && records.length > 0) {
-          setActiveOrgId(records[0].org_id);
-        }
+    if (data?.orgs) {
+      setOrgs(data.orgs);
+      if (!activeOrgId && data.orgs.length > 0) {
+        setActiveOrgId(data.orgs[0].id);
       }
-      setLoading(false);
-    };
-
-    fetchOrgs();
-  }, [supabase, setActiveOrgId, activeOrgId, pushToast]);
+    }
+  }, [data, error, activeOrgId, setActiveOrgId, pushToast]);
 
   useEffect(() => {
     if (activeOrgId) {
       window.localStorage.setItem("activeOrgId", activeOrgId);
     }
   }, [activeOrgId]);
+
+  const loading = isLoading && orgs.length === 0;
 
   if (!loading && orgs.length === 0) {
     return (
@@ -143,8 +110,8 @@ export const OrgSwitcher = () => {
           {loading ? "Loading..." : "Select organization"}
         </option>
         {orgs.map((org) => (
-          <option key={org.org_id} value={org.org_id}>
-            {org.organizations?.name ?? org.org_id}
+          <option key={org.id} value={org.id}>
+            {org.name || org.id}
           </option>
         ))}
       </select>
