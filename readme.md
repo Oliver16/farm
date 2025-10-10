@@ -78,7 +78,7 @@ The provided Playwright spec is scaffolded (`test.describe.skip`) and should be 
 ## Supabase & Authentication
 
 1. Create a Supabase project and note the project URL and anon key.
-2. Enable Email/Magic Link auth. During development you can create a user via Supabase Auth dashboard or by sending yourself a magic link.
+2. Enable email + password auth. During development you can create a user directly in the Supabase Auth dashboard and set an initial password.
 3. The app stores the active Supabase session in browser storage. No additional configuration is required beyond supplying the environment variables above.
 
 ## Organizations & Active Org State
@@ -112,7 +112,7 @@ The `OrgSwitcher` reads from the `org_memberships` table and expects a foreign r
 
 ## Creating a Test User & Setting `activeOrgId`
 
-1. Invite or create a test user via Supabase Auth (email magic link).
+1. Invite or create a test user via Supabase Auth (email + password).
 2. Insert a corresponding row into `org_memberships` linking the user to an organization record.
 3. Sign in through `/login`. After authentication, choose the organization from the OrgSwitcher dropdown. The selection persists across sessions.
 

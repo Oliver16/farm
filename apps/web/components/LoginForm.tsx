@@ -1,24 +1,30 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSupabase } from "./AppProviders";
 
 export const LoginForm = () => {
   const supabase = useSupabase();
+  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus(null);
 
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
     if (error) {
       setStatus(error.message);
       return;
     }
 
-    setStatus("Check your inbox for the magic link.");
+    router.push("/");
   };
 
   return (
@@ -51,6 +57,22 @@ export const LoginForm = () => {
           color: "inherit"
         }}
       />
+      <label htmlFor="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        required
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        autoComplete="current-password"
+        style={{
+          padding: "0.5rem",
+          borderRadius: "0.5rem",
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: "rgba(6, 17, 24, 0.7)",
+          color: "inherit"
+        }}
+      />
       <button
         type="submit"
         className="focus-ring"
@@ -64,7 +86,7 @@ export const LoginForm = () => {
           cursor: "pointer"
         }}
       >
-        Send magic link
+        Sign in
       </button>
       {status ? (
         <p style={{ margin: 0, fontSize: "0.9rem", textAlign: "center" }}>{status}</p>
