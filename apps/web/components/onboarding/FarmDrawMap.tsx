@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import type MapboxDraw from "@mapbox/mapbox-gl-draw";
-import Draw from "@mapbox/mapbox-gl-draw";
+import MapboxDraw, { type DrawCustomMode } from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { registry } from "@/lib/config";
 
@@ -45,13 +44,21 @@ export const FarmDrawMap = ({ onFeatureChange }: FarmDrawMapProps) => {
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    const draw = new Draw({
+    type DrawModeImplementation = DrawCustomMode<
+      Record<string, unknown>,
+      Record<string, unknown>
+    >;
+
+    const draw = new MapboxDraw({
       displayControlsDefault: false,
+      modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>,
       controls: {
         polygon: true,
         trash: true
       }
     });
+
+    drawRef.current = draw;
 
     map.addControl(draw as unknown as maplibregl.IControl, "top-left");
 
@@ -78,7 +85,8 @@ export const FarmDrawMap = ({ onFeatureChange }: FarmDrawMapProps) => {
       });
 
       if (first?.id) {
-        drawRef.current?.changeMode("simple_select", { featureIds: [first.id] });
+        const firstId = String(first.id);
+        drawRef.current?.changeMode("simple_select", { featureIds: [firstId] });
       }
 
       syncFeature();

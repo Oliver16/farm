@@ -4,5 +4,4 @@ process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL = process.env.NEXT_PUBLIC_BASEMAP_STYL
 process.env.FEATURESERV_BASE = process.env.FEATURESERV_BASE ?? "https://geo.local/features";
 process.env.TILESERV_BASE = process.env.TILESERV_BASE ?? "https://geo.local/tiles";
 process.env.TITILER_BASE = process.env.TITILER_BASE ?? "https://geo.local/rasters";
-process.env.PMTILES_BASE = process.env.PMTILES_BASE ?? "https://supabase.storage";
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "service-role";

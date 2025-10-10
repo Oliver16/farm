@@ -31,14 +31,12 @@ export async function GET(
   }
 
   const client = createServiceRoleSupabaseClient();
-  const query = client
+  const { data, error } = await client
     .from("rasters")
     .select("id, org_id, bucket, key, s3_url")
     .eq("id", id)
     .eq("org_id", orgId)
-    .maybeSingle();
-
-  const { data, error } = await query;
+    .maybeSingle<RasterRow>();
 
   const raster = data as RasterRow | null;
 
