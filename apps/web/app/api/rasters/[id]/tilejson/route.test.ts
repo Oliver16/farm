@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { registry } from "../../../../../lib/config";
+import { registry } from "@/lib/config";
 
-vi.mock("../../../../../lib/supabase", () => ({
+vi.mock("@/lib/supabase/service-role", () => ({
   createServiceRoleSupabaseClient: vi.fn()
 }));
 
-import { createServiceRoleSupabaseClient } from "../../../../../lib/supabase";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { GET } from "./route";
 
 const mockFetch = vi.fn();
@@ -14,7 +14,13 @@ vi.stubGlobal("fetch", mockFetch);
 
 describe("rasters tilejson proxy", () => {
   const maybeSingle = vi.fn();
-  const query = { eq: vi.fn(), maybeSingle } as any;
+  const query = {
+    eq: vi.fn(),
+    maybeSingle
+  } as {
+    eq: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
+  };
   const select = vi.fn(() => query);
   const from = vi.fn(() => ({ select }));
 
