@@ -2,9 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import MapboxDraw, { type DrawCustomMode } from "@mapbox/mapbox-gl-draw";
-import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { registry } from "@/lib/config";
 
