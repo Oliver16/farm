@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import MapboxDraw from "maplibre-gl-draw";
-import { Protocol } from "pmtiles";
 import type { Feature, FeatureCollection } from "geojson";
 import { registry } from "../../lib/config";
 import { useAppStore } from "../../lib/store";
@@ -62,16 +61,16 @@ export const useMapController = () => {
       return;
     }
 
-    const protocol = new Protocol();
-    maplibregl.addProtocol("pmtiles", protocol.tile);
-
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: registry.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
+      style:
+        process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL ??
+        registry.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
       center: [-96, 37.5],
       zoom: 4
     });
 
+    map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     type DrawModeImplementation = MapboxDraw.DrawCustomMode<
@@ -103,7 +102,7 @@ export const useMapController = () => {
         if (!map.getSource(layer.id)) {
           map.addSource(layer.id, {
             type: "vector",
-            tiles: [layer.tilesPathTemplate],
+            tiles: [layer.tilesUrlTemplate],
             minzoom: layer.minzoom,
             maxzoom: layer.maxzoom
           });
@@ -114,7 +113,7 @@ export const useMapController = () => {
             id: `${layer.id}-fill`,
             type: "fill",
             source: layer.id,
-            "source-layer": layer.id,
+            "source-layer": layer.sourceLayer,
             paint: {
               "fill-color": layer.paint?.["fill-color"],
               "fill-opacity": layer.paint?.["fill-opacity"] ?? 0.25
@@ -130,7 +129,7 @@ export const useMapController = () => {
             id: `${layer.id}-line`,
             type: "line",
             source: layer.id,
-            "source-layer": layer.id,
+            "source-layer": layer.sourceLayer,
             paint: {
               "line-color": layer.paint?.["line-color"],
               "line-width": layer.paint?.["line-width"] ?? 1.5

@@ -1,22 +1,27 @@
 import { test, expect } from "@playwright/test";
 
-test.describe.skip("Geospatial editing flow", () => {
-  test("user can draw, save, and delete a feature", async ({ page }) => {
+test.describe.skip("Geospatial integrations", () => {
+  test("loads MapTiler basemap style", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByText("Farm Geospatial Console")).toBeVisible();
+    await expect(page.getByRole("main")).toBeVisible();
+    await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible();
+    // TODO: add network assertion for MapTiler style.json once backend fixtures are available.
+  });
 
-    await page.getByRole("button", { name: "Draw" }).click();
-    await page.mouse.click(400, 300);
-    await page.mouse.click(450, 320);
-    await page.mouse.click(420, 360);
-    await page.mouse.click(400, 300);
+  test("toggles Ortho and DEM rasters via TileJSON proxy", async ({ page }) => {
+    await page.goto("/");
 
-    await page.getByLabel("Name").fill("Demo Feature");
-    await page.getByRole("button", { name: "Save Attributes" }).click();
-    await expect(page.getByText("Feature saved")).toBeVisible();
+    // TODO: mock /api/rasters responses and verify raster layers render via MapLibre.
+    await expect(page.getByText("Rasters")).toBeVisible();
+    await expect(page.getByLabel("Orthophoto")).toBeVisible();
+    await expect(page.getByLabel("DEM Hillshade")).toBeVisible();
+  });
 
-    await page.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText("Feature saved")).toBeVisible();
+  test("renders vector layers and fetches feature details", async ({ page }) => {
+    await page.goto("/");
+
+    // TODO: stub pg_tileserv and pg_featureserv responses to validate identify workflow.
+    await expect(page.getByText("Layers")).toBeVisible();
   });
 });
