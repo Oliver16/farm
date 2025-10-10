@@ -12,6 +12,7 @@ export const LayerPanel = () => {
   const setActiveLayerId = useAppStore((state) => state.setActiveLayerId);
   const rasterVisibility = useAppStore((state) => state.rasterVisibility);
   const toggleRasterVisibility = useAppStore((state) => state.toggleRasterVisibility);
+  const setAllRastersVisibility = useAppStore((state) => state.setAllRastersVisibility);
 
   return (
     <section aria-labelledby="layer-panel-heading">
@@ -50,6 +51,14 @@ export const LayerPanel = () => {
         ))}
       </div>
       <h3 style={{ marginBottom: "0.5rem", marginTop: "1.5rem" }}>Rasters</h3>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+        <button type="button" onClick={() => setAllRastersVisibility(true)}>
+          Show all
+        </button>
+        <button type="button" onClick={() => setAllRastersVisibility(false)}>
+          Hide all
+        </button>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {rasterList.map((raster: RasterDefinition) => (
           <label

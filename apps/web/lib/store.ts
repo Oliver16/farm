@@ -24,6 +24,7 @@ interface AppState {
   toggleLayerVisibility: (id: LayerId) => void;
   rasterVisibility: Record<RasterId, boolean>;
   toggleRasterVisibility: (id: RasterId) => void;
+  setAllRastersVisibility: (visible: boolean) => void;
   editMode: EditMode;
   setEditMode: (mode: EditMode) => void;
   selectedFeature?: Feature;
@@ -42,6 +43,15 @@ const initialLayerVisibility = registry.layerList.reduce(
   }),
   {} as Record<LayerId, boolean>
 );
+
+const buildRasterVisibility = (visible: boolean) =>
+  registry.rasterList.reduce(
+    (acc, raster) => ({
+      ...acc,
+      [raster.id]: visible
+    }),
+    {} as Record<RasterId, boolean>
+  );
 
 const initialRasterVisibility = registry.rasterList.reduce(
   (acc, raster) => ({
@@ -66,6 +76,10 @@ export const useAppStore = create<AppState>((set) => ({
         ...state.rasterVisibility,
         [id]: !state.rasterVisibility[id]
       }
+    })),
+  setAllRastersVisibility: (visible) =>
+    set(() => ({
+      rasterVisibility: buildRasterVisibility(visible)
     })),
   editMode: "view",
   setEditMode: (mode) => set({ editMode: mode }),
