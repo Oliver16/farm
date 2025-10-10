@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { registry, type RasterId, isRasterId } from "../../../../../lib/config";
+import { registry, type RasterId, isRasterId } from "../../../../lib/config";
 
 const rastersMetadata: Record<RasterId, { path: string; format: string }> = {
   ortho: {

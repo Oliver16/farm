@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isLayerId, registry } from "../../../../../lib/config";
-import { createServiceRoleSupabaseClient } from "../../../../../lib/supabase/service-role";
+import { isLayerId, registry } from "../../../../lib/config";
+import { createServiceRoleSupabaseClient } from "../../../../lib/supabase";
 import { payloadSchema } from "../../../../lib/validation";
 
 const errorResponse = (code: string, message: string, status = 400) =>

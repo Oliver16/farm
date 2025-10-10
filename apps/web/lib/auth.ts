@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "./supabase/server";
+import { createServerSupabaseClient } from "./supabase";
 
 export interface SessionUser {
   id: string;
