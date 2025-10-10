@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
-import { registry } from "../../lib/config";
+import { registry, type LayerId } from "../../lib/config";
 
 export const useLayerVisibility = (
   mapRef: React.MutableRefObject<maplibregl.Map | null>,
-  layerVisibility: Record<string, boolean>
+  layerVisibility: Record<LayerId, boolean>
 ) => {
   useEffect(() => {
     const map = mapRef.current;

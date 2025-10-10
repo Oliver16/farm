@@ -3,6 +3,7 @@ import {
   layerIds,
   editableLayerIds,
   vectorLayers,
+  layerList,
   type GeometryType,
   type LayerDefinition,
   type LayerId,
@@ -10,6 +11,7 @@ import {
 } from "./layers";
 import {
   rasters,
+  rasterList,
   type RasterDefinition,
   type RasterId,
   isRasterId
@@ -30,6 +32,9 @@ export {
   isLayerId
 };
 export { rasters, type RasterDefinition, type RasterId, isRasterId };
+export type { VectorLayerConfig, RasterConfig } from "../types/layers";
+
+export { layerList, rasterList };
 
 const layerList = Object.values(vectorLayers) as LayerDefinition[];
 const rasterList = Object.values(rasters) as RasterDefinition[];
