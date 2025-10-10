@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type MapboxDraw from "maplibre-gl-draw";
+import type MapboxDraw from "@mapbox/mapbox-gl-draw";
 import type { FeatureCollection } from "geojson";
 import type { LayerId } from "../../lib/config";
 
