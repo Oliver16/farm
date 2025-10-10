@@ -3,7 +3,7 @@ import maplibregl from "maplibre-gl";
 import type MapboxDraw from "@mapbox/mapbox-gl-draw";
 import Draw, { type DrawCustomMode, type DrawMode } from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection } from "geojson";
-import { registry } from "../../lib/config";
+import { registry, type LayerId } from "../../lib/config";
 import { useAppStore } from "../../lib/store";
 import { validateFeaturePayload } from "../../lib/validation";
 import { jsonFetcher } from "../../lib/fetcher";
@@ -14,7 +14,7 @@ import { useLayerVisibility } from "./useLayerVisibility";
 import { useRasterVisibility } from "./useRasterVisibility";
 import { errorMessages } from "./constants";
 
-const identifyLayerFromId = (layerId: string) =>
+const identifyLayerFromId = (layerId: string): LayerId | null =>
   registry.layerList.find((layer) => layerId.startsWith(layer.id))?.id ?? null;
 
 const debounce = (fn: () => void, delay: number) => {

@@ -36,12 +36,18 @@ interface AppState {
 }
 
 const initialLayerVisibility = registry.layerList.reduce(
-  (acc, layer) => ({ ...acc, [layer.id]: true }),
+  (acc, layer) => ({
+    ...acc,
+    [layer.id]: layer.defaultVisible ?? true
+  }),
   {} as Record<LayerId, boolean>
 );
 
 const initialRasterVisibility = registry.rasterList.reduce(
-  (acc, raster) => ({ ...acc, [raster.id]: false }),
+  (acc, raster) => ({
+    ...acc,
+    [raster.id]: raster.defaultVisible ?? false
+  }),
   {} as Record<RasterId, boolean>
 );
 

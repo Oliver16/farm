@@ -2,6 +2,7 @@ import type {
   FillLayerSpecification,
   LineLayerSpecification
 } from "maplibre-gl";
+import type { VectorLayerConfig, VectorLayerId } from "../types/layers";
 import { env } from "./env";
 
 export const layerIds = [
@@ -10,22 +11,17 @@ export const layerIds = [
   "buildings",
   "greenhouses",
   "greenhouse_areas"
-] as const;
+] as const satisfies VectorLayerId[];
 
-export type LayerId = (typeof layerIds)[number];
+export type LayerId = VectorLayerId;
 
 export type GeometryType = "MultiPolygon" | "Polygon";
 
-export interface LayerDefinition {
-  id: LayerId;
-  title: string;
+export interface LayerDefinition extends VectorLayerConfig {
   geomType: GeometryType;
-  tilesUrlTemplate: string;
   featureCollectionPath: string;
   rpcUpsert: string;
   rpcDelete: string;
-  minzoom: number;
-  maxzoom: number;
   sourceLayer: string;
   paint: FillLayerSpecification["paint"] &
     LineLayerSpecification["paint"];
@@ -38,6 +34,8 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
   farms: {
     id: "farms",
     title: "Farms",
+    editable: true,
+    defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_farms/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/farms/items`,
@@ -56,6 +54,8 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
   fields: {
     id: "fields",
     title: "Fields",
+    editable: true,
+    defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_fields/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/fields/items`,
@@ -74,6 +74,8 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
   buildings: {
     id: "buildings",
     title: "Buildings",
+    editable: true,
+    defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_buildings/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/buildings/items`,
@@ -92,6 +94,8 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
   greenhouses: {
     id: "greenhouses",
     title: "Greenhouses",
+    editable: true,
+    defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_greenhouses/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouses/items`,
@@ -110,6 +114,8 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
   greenhouse_areas: {
     id: "greenhouse_areas",
     title: "Greenhouse Areas",
+    editable: true,
+    defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_greenhouse_areas/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouse_areas/items`,
@@ -131,3 +137,5 @@ export const editableLayerIds = layerIds;
 
 export const isLayerId = (value: string): value is LayerId =>
   layerIds.includes(value as LayerId);
+
+export const layerList = Object.values(vectorLayers);

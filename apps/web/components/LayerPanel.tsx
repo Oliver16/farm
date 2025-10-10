@@ -1,5 +1,6 @@
 "use client";
 
+import type { RasterConfig, VectorLayerConfig } from "../lib/types/layers";
 import { registry } from "../lib/config";
 import { useAppStore } from "../lib/store";
 
@@ -18,7 +19,7 @@ export const LayerPanel = () => {
         Layers
       </h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {layerList.map((layer) => (
+        {layerList.map((layer: VectorLayerConfig) => (
           <div
             key={layer.id}
             style={{
@@ -50,7 +51,7 @@ export const LayerPanel = () => {
       </div>
       <h3 style={{ marginBottom: "0.5rem", marginTop: "1.5rem" }}>Rasters</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {rasterList.map((raster) => (
+        {rasterList.map((raster: RasterConfig) => (
           <label
             key={raster.id}
             style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}

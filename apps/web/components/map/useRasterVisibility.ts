@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
 import { jsonFetcher } from "../../lib/fetcher";
-import { registry } from "../../lib/config";
+import { registry, type RasterId } from "../../lib/config";
 
 type TileJson = {
   tiles?: string[];
@@ -12,14 +12,14 @@ type TileJson = {
 
 const tilejsonCache = new Map<string, Promise<TileJson>>();
 
-const getTilejson = (rasterId: string, orgId: string, route: string) => {
+const getTilejson = (rasterId: RasterId, orgId: string, url: string) => {
   const cacheKey = `${rasterId}:${orgId}`;
   const existing = tilejsonCache.get(cacheKey);
   if (existing) {
     return existing;
   }
 
-  const request = jsonFetcher<TileJson>(`${route}?org_id=${orgId}`)
+  const request = jsonFetcher<TileJson>(`${url}?org_id=${orgId}`)
     .then((response) => response)
     .catch((error) => {
       tilejsonCache.delete(cacheKey);
@@ -32,7 +32,7 @@ const getTilejson = (rasterId: string, orgId: string, route: string) => {
 
 export const useRasterVisibility = (
   mapRef: React.MutableRefObject<maplibregl.Map | null>,
-  rasterVisibility: Record<string, boolean>,
+  rasterVisibility: Record<RasterId, boolean>,
   activeOrgId: string | null,
   pushToastRef: React.MutableRefObject<
     ((payload: { type: "error" | "success" | "info"; message: string }) => void) | undefined
@@ -52,11 +52,10 @@ export const useRasterVisibility = (
         if (isVisible) {
           try {
             if (!map.getSource(sourceId)) {
-              const tilejson = await getTilejson(
-                raster.id,
-                activeOrgId,
-                raster.tilejsonRoute
-              );
+              if (!raster.tilejsonUrl) {
+                throw new Error("Raster unavailable.");
+              }
+              const tilejson = await getTilejson(raster.id, activeOrgId, raster.tilejsonUrl);
 
               if (!tilejson.tiles?.length) {
                 throw new Error("Raster unavailable.");

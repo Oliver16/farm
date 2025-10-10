@@ -1,11 +1,11 @@
+import type { RasterConfig } from "../types/layers";
 import { env } from "./env";
 
 export type RasterId = "ortho" | "dem_hillshade";
 
-export interface RasterDefinition {
+export interface RasterDefinition extends RasterConfig {
   id: RasterId;
-  title: string;
-  tilejsonRoute: string;
+  tilejsonUrl: string;
   resampling: "linear" | "nearest";
   opacity: number;
 }
@@ -14,14 +14,16 @@ export const rasters: Record<RasterId, RasterDefinition> = {
   ortho: {
     id: "ortho",
     title: "Orthophoto",
-    tilejsonRoute: "/api/rasters/ortho/tilejson",
+    tilejsonUrl: "/api/rasters/ortho/tilejson",
+    defaultVisible: false,
     resampling: "linear",
     opacity: 0.85
   },
   dem_hillshade: {
     id: "dem_hillshade",
     title: "DEM Hillshade",
-    tilejsonRoute: "/api/rasters/dem_hillshade/tilejson",
+    tilejsonUrl: "/api/rasters/dem_hillshade/tilejson",
+    defaultVisible: false,
     resampling: "nearest",
     opacity: 0.8
   }
@@ -29,6 +31,8 @@ export const rasters: Record<RasterId, RasterDefinition> = {
 
 export const isRasterId = (value: string): value is RasterId =>
   Object.prototype.hasOwnProperty.call(rasters, value);
+
+export const rasterList = Object.values(rasters);
 
 export const createCogTileJsonUrl = (s3Url: string) => {
   const base = env.TITILER_BASE.replace(/\/$/, "");
