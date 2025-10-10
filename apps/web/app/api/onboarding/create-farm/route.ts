@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getServerSession } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { onboardingCreateFarmSchema } from "@/lib/validation.onboarding";
 
@@ -21,6 +22,30 @@ export async function POST(request: NextRequest) {
   const parseResult = onboardingCreateFarmSchema.safeParse(payload);
   if (!parseResult.success) {
     return errorResponse("VALIDATION_FAILED", parseResult.error.message);
+  }
+
+  const supabase = createServerSupabaseClient();
+  const { data: membership, error: membershipError } = await supabase
+    .from("org_memberships")
+    .select("org_id")
+    .eq("org_id", parseResult.data.org_id)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    return errorResponse(
+      membershipError.code ?? "MEMBERSHIP_CHECK_FAILED",
+      membershipError.message ?? "Failed to verify organization membership",
+      500
+    );
+  }
+
+  if (!membership) {
+    return errorResponse(
+      "FORBIDDEN",
+      "You do not have permission to manage this organization",
+      403
+    );
   }
 
   const client = createServiceRoleSupabaseClient();
