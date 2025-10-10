@@ -8,9 +8,7 @@ import { createCogTileJsonUrl } from "@/lib/config/rasters";
 type RasterRow = {
   id: string;
   org_id: string;
-  bucket?: string | null;
-  key?: string | null;
-  s3_url?: string | null;
+  cog_url: string | null;
 };
 
 const errorResponse = (status: number, code: string, message: string) =>
@@ -37,7 +35,7 @@ export async function GET(
     error
   }: PostgrestMaybeSingleResponse<RasterRow> = await client
     .from("rasters")
-    .select("id, org_id, bucket, key, s3_url")
+    .select("id, org_id, cog_url")
     .eq("id", id)
     .eq("org_id", orgId)
     .maybeSingle<RasterRow>();
@@ -50,12 +48,10 @@ export async function GET(
     return errorResponse(404, "RASTER_NOT_FOUND", "Raster not found");
   }
 
-  const key = raster.key ?? undefined;
-  const bucket = raster.bucket ?? "rasters";
-  const s3Url = raster.s3_url ?? (key ? `s3://${bucket.replace(/\/$/, "")}/${key.replace(/^\//, "")}` : undefined);
+  const s3Url = raster.cog_url ?? undefined;
 
   if (!s3Url) {
-    return errorResponse(500, "RASTER_PATH_INVALID", "Raster key is missing");
+    return errorResponse(500, "RASTER_PATH_INVALID", "Raster cog_url is missing");
   }
 
   const tilejsonUrl = createCogTileJsonUrl(s3Url);
