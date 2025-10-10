@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import type MapboxDraw from "@mapbox/mapbox-gl-draw";
-import Draw, { type DrawCustomMode, type DrawMode } from "@mapbox/mapbox-gl-draw";
+import MapboxDraw, { type DrawCustomMode, type DrawMode } from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection } from "geojson";
 import { registry } from "../../lib/config";
 import { useAppStore } from "../../lib/store";
@@ -79,13 +78,15 @@ export const useMapController = () => {
       Record<string, unknown>
     >;
 
-    const draw = new Draw({
+    const draw = new MapboxDraw({
       displayControlsDefault: false,
       // @mapbox/mapbox-gl-draw's types don't reflect the runtime shape of `modes`.
-      modes: Draw.modes as unknown as Record<string, DrawModeImplementation>
+      modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>
     });
 
-    const changeMode = draw.changeMode.bind(draw) as (mode: DrawMode) => MapboxDraw;
+    const changeMode = (mode: DrawMode) => {
+      draw.changeMode(mode as Parameters<MapboxDraw["changeMode"]>[0]);
+    };
 
     map.addControl(draw as unknown as maplibregl.IControl, "top-left");
 

@@ -31,14 +31,12 @@ export async function GET(
   }
 
   const client = createServiceRoleSupabaseClient();
-  const query = client
-    .from<RasterRow>("rasters")
+  const { data, error } = await client
+    .from("rasters")
     .select("id, org_id, bucket, key, s3_url")
     .eq("id", id)
     .eq("org_id", orgId)
-    .maybeSingle();
-
-  const { data, error } = await query;
+    .maybeSingle<RasterRow>();
 
   if (error) {
     return errorResponse(500, "SUPABASE_ERROR", error.message ?? "Failed to load raster");

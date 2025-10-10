@@ -15,6 +15,6 @@ describe("layer registry", () => {
     expect(registry.env.FEATURESERV_BASE).toBeTruthy();
     expect(registry.env.TILESERV_BASE).toBeTruthy();
     expect(registry.env.TITILER_BASE).toBeTruthy();
-    expect(registry.env.PMTILES_BASE).toBeTruthy();
+    expect(registry.env.SUPABASE_SERVICE_ROLE_KEY).toBeTruthy();
   });
 });

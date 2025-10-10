@@ -3,11 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { registry, type LayerId } from "../lib/config";
 import { useAppStore } from "../lib/store";
+import { useSupabase } from "./AppProviders";
+
+type ForeignKeyField = "farm_id" | "building_id" | "greenhouse_id";
 
 type LayerField = {
   name: string;
   label: string;
   required?: boolean;
+  input?: "text" | "select";
+  optionKey?: ForeignKeyField;
 };
 
 const fieldsByLayer: Record<LayerId, LayerField[]> = {
@@ -17,7 +22,7 @@ const fieldsByLayer: Record<LayerId, LayerField[]> = {
   fields: [
     { name: "name", label: "Name" },
     { name: "crop", label: "Crop" },
-    { name: "farm_id", label: "Farm ID" }
+    { name: "farm_id", label: "Farm", input: "select", optionKey: "farm_id" }
   ],
   buildings: [
     { name: "name", label: "Name" },
@@ -25,14 +30,43 @@ const fieldsByLayer: Record<LayerId, LayerField[]> = {
   ],
   greenhouses: [
     { name: "name", label: "Name" },
-    { name: "building_id", label: "Building ID" }
+    {
+      name: "building_id",
+      label: "Building",
+      input: "select",
+      optionKey: "building_id"
+    }
   ],
   greenhouse_areas: [
     { name: "name", label: "Name" },
     { name: "use_type", label: "Use Type", required: true },
     { name: "bench_id", label: "Bench ID" },
-    { name: "greenhouse_id", label: "Greenhouse ID" }
+    {
+      name: "greenhouse_id",
+      label: "Greenhouse",
+      input: "select",
+      optionKey: "greenhouse_id"
+    }
   ]
+};
+
+interface ForeignKeyOption {
+  id: string;
+  name: string;
+}
+
+type ForeignKeyOptions = Record<ForeignKeyField, ForeignKeyOption[]>;
+
+const emptyForeignKeyOptions: ForeignKeyOptions = {
+  farm_id: [],
+  building_id: [],
+  greenhouse_id: []
+};
+
+const foreignKeyTableByField: Record<ForeignKeyField, "farms" | "buildings" | "greenhouses"> = {
+  farm_id: "farms",
+  building_id: "buildings",
+  greenhouse_id: "greenhouses"
 };
 
 const dispatchAttributes = (payload: unknown) => {
@@ -40,11 +74,17 @@ const dispatchAttributes = (payload: unknown) => {
 };
 
 export const AttributePanel = () => {
+  const supabase = useSupabase();
   const activeLayerId = useAppStore((state) => state.activeLayerId);
   const selectedFeature = useAppStore((state) => state.selectedFeature);
   const editMode = useAppStore((state) => state.editMode);
   const activeOrgId = useAppStore((state) => state.activeOrgId);
   const [formState, setFormState] = useState<Record<string, string>>({});
+  const [foreignKeyOptions, setForeignKeyOptions] = useState<ForeignKeyOptions>(
+    emptyForeignKeyOptions
+  );
+  const [loadingForeignKeys, setLoadingForeignKeys] = useState(false);
+  const pushToast = useAppStore((state) => state.pushToast);
 
   useEffect(() => {
     if (!selectedFeature) {
@@ -60,6 +100,69 @@ export const AttributePanel = () => {
       setFormState((prev) => ({ ...prev, org_id: activeOrgId }));
     }
   }, [activeOrgId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeOrgId) {
+      setForeignKeyOptions(emptyForeignKeyOptions);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadForeignKeys = async () => {
+      setLoadingForeignKeys(true);
+      const entries = Object.entries(foreignKeyTableByField) as [
+        ForeignKeyField,
+        (typeof foreignKeyTableByField)[ForeignKeyField]
+      ][];
+
+      const nextOptions: ForeignKeyOptions = {
+        farm_id: [],
+        building_id: [],
+        greenhouse_id: []
+      };
+
+      try {
+        for (const [field, table] of entries) {
+          const { data, error } = await supabase
+            .from(table)
+            .select("id, name")
+            .eq("org_id", activeOrgId)
+            .order("name", { ascending: true });
+
+          if (error) {
+            pushToast({
+              type: "error",
+              message: `Failed to load ${field.replace("_id", " options")}: ${error.message}`
+            });
+            nextOptions[field] = [];
+            continue;
+          }
+
+          const rows = (data ?? []) as { id: string; name: string | null }[];
+          nextOptions[field] = rows.map((row) => ({
+            id: row.id,
+            name: row.name ?? row.id
+          }));
+        }
+
+        if (!cancelled) {
+          setForeignKeyOptions(nextOptions);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingForeignKeys(false);
+        }
+      }
+    };
+
+    void loadForeignKeys();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrgId, supabase, pushToast]);
 
   const fields = useMemo(() => {
     if (!activeLayerId) return [];
@@ -90,19 +193,49 @@ export const AttributePanel = () => {
         {field.label}
         {field.required ? " *" : ""}
       </span>
-      <input
-        type="text"
-        value={formState[field.name] ?? ""}
-        onChange={(event) => handleChange(field.name, event.target.value)}
-        disabled={editMode !== "edit"}
-        style={{
-          padding: "0.5rem",
-          borderRadius: "0.5rem",
-          border: "1px solid rgba(255,255,255,0.2)",
-          background: "rgba(6, 17, 24, 0.6)",
-          color: "inherit"
-        }}
-      />
+      {field.input === "select" && field.optionKey ? (
+        <select
+          value={formState[field.name] ?? ""}
+          onChange={(event) => handleChange(field.name, event.target.value)}
+          disabled={editMode !== "edit" || loadingForeignKeys}
+          style={{
+            padding: "0.5rem",
+            borderRadius: "0.5rem",
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(6, 17, 24, 0.6)",
+            color: "inherit"
+          }}
+        >
+          <option value="">{loadingForeignKeys ? "Loading…" : "Select"}</option>
+          {(() => {
+            const options = foreignKeyOptions[field.optionKey] ?? [];
+            const currentValue = formState[field.name];
+            const enrichedOptions =
+              currentValue && !options.some((option) => option.id === currentValue)
+                ? [...options, { id: currentValue, name: currentValue }]
+                : options;
+            return enrichedOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ));
+          })()}
+        </select>
+      ) : (
+        <input
+          type="text"
+          value={formState[field.name] ?? ""}
+          onChange={(event) => handleChange(field.name, event.target.value)}
+          disabled={editMode !== "edit"}
+          style={{
+            padding: "0.5rem",
+            borderRadius: "0.5rem",
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(6, 17, 24, 0.6)",
+            color: "inherit"
+          }}
+        />
+      )}
     </label>
   );
 
