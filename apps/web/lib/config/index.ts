@@ -28,6 +28,9 @@ export {
 };
 export { rasters, type RasterDefinition, type RasterId, isRasterId };
 
+const layerList = Object.values(vectorLayers) as LayerDefinition[];
+const rasterList = Object.values(rasters) as RasterDefinition[];
+
 export const registry = {
   env,
   vectorLayers,
