@@ -34,7 +34,6 @@ Set the following environment variables for **development**, **preview**, and **
 | `FEATURESERV_BASE` | Server | Base URL for pg_featureserv proxy |
 | `TILESERV_BASE` | Server | Base URL for pg_tileserv proxy |
 | `TITILER_BASE` | Server | Base URL for TiTiler instances |
-| `PMTILES_BASE` | Server | Base URL to Supabase Storage PMTiles bucket (kept for compatibility) |
 | `GEO_API_KEY` | Server (optional) | API key forwarded to geo services |
 
 Create `.env.local`, `.env.preview`, and `.env.production` files inside `apps/web/` (or configure hosting provider secrets) with these values.

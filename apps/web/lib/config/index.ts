@@ -17,6 +17,9 @@ import {
   isRasterId
 } from "./rasters";
 
+export const layerList = Object.values(vectorLayers);
+export const rasterList = Object.values(rasters);
+
 export { env };
 export type { AppEnv } from "./env";
 export {
@@ -32,6 +35,9 @@ export { rasters, type RasterDefinition, type RasterId, isRasterId };
 export type { VectorLayerConfig, RasterConfig } from "../types/layers";
 
 export { layerList, rasterList };
+
+const layerList = Object.values(vectorLayers) as LayerDefinition[];
+const rasterList = Object.values(rasters) as RasterDefinition[];
 
 export const registry = {
   env,
