@@ -12,9 +12,14 @@ import { useDrawSync } from "./useDrawSync";
 import { useLayerVisibility } from "./useLayerVisibility";
 import { useRasterVisibility } from "./useRasterVisibility";
 import { errorMessages } from "./constants";
+import { getFeatureCollectionBounds } from "../../lib/utils/geojson";
 
 const identifyLayerFromId = (layerId: string): LayerId | null =>
   registry.layerList.find((layer) => layerId.startsWith(layer.id))?.id ?? null;
+
+const DEFAULT_CENTER: [number, number] = [-96, 37.5];
+const DEFAULT_ZOOM = 4;
+const DEFAULT_ORG_LAYER: LayerId = "farms";
 
 const debounce = (fn: () => void, delay: number) => {
   let timeoutId: number | undefined;
@@ -66,8 +71,8 @@ export const useMapController = () => {
       style:
         process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL ??
         registry.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
-      center: [-96, 37.5],
-      zoom: 4
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM
     });
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
@@ -318,6 +323,71 @@ export const useMapController = () => {
   useLayerVisibility(mapRef, layerVisibility);
 
   useRasterVisibility(mapRef, rasterVisibility, activeOrgId ?? null, pushToastRef);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    let cancelled = false;
+
+    const flyToDefault = () => {
+      if (cancelled) return;
+      map.easeTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM });
+    };
+
+    const updateView = async () => {
+      if (!activeOrgId) {
+        flyToDefault();
+        return;
+      }
+
+      try {
+        const farms = await jsonFetcher<FeatureCollection>(
+          `/api/features/${DEFAULT_ORG_LAYER}?org_id=${activeOrgId}&limit=5000`
+        );
+
+        if (cancelled) return;
+
+        const bounds = getFeatureCollectionBounds(farms);
+        if (!bounds) {
+          flyToDefault();
+          return;
+        }
+
+        const [[minLng, minLat], [maxLng, maxLat]] = bounds;
+
+        if (minLng === maxLng && minLat === maxLat) {
+          map.easeTo({ center: [minLng, minLat], zoom: 16 });
+          return;
+        }
+
+        map.fitBounds(bounds, { padding: 64, maxZoom: 16, duration: 800 });
+      } catch (error) {
+        if (!cancelled) {
+          flyToDefault();
+        }
+      }
+    };
+
+    if (!map.isStyleLoaded()) {
+      const handleLoad = () => {
+        void updateView();
+      };
+
+      map.once("load", handleLoad);
+
+      return () => {
+        cancelled = true;
+        map.off("load", handleLoad);
+      };
+    }
+
+    void updateView();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrgId]);
 
   return { containerRef };
 };
