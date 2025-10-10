@@ -32,7 +32,7 @@ export async function GET(
 
   const client = createServiceRoleSupabaseClient();
   const query = client
-    .from<RasterRow>("rasters")
+    .from("rasters")
     .select("id, org_id, bucket, key, s3_url")
     .eq("id", id)
     .eq("org_id", orgId)
@@ -40,17 +40,19 @@ export async function GET(
 
   const { data, error } = await query;
 
+  const raster = data as RasterRow | null;
+
   if (error) {
     return errorResponse(500, "SUPABASE_ERROR", error.message ?? "Failed to load raster");
   }
 
-  if (!data) {
+  if (!raster) {
     return errorResponse(404, "RASTER_NOT_FOUND", "Raster not found");
   }
 
-  const key = data.key ?? undefined;
-  const bucket = data.bucket ?? "rasters";
-  const s3Url = data.s3_url ?? (key ? `s3://${bucket.replace(/\/$/, "")}/${key.replace(/^\//, "")}` : undefined);
+  const key = raster.key ?? undefined;
+  const bucket = raster.bucket ?? "rasters";
+  const s3Url = raster.s3_url ?? (key ? `s3://${bucket.replace(/\/$/, "")}/${key.replace(/^\//, "")}` : undefined);
 
   if (!s3Url) {
     return errorResponse(500, "RASTER_PATH_INVALID", "Raster key is missing");
