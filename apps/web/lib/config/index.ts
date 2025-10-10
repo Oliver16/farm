@@ -1,5 +1,5 @@
-export { env, type AppEnv } from "./env";
-export {
+import { env } from "./env";
+import {
   layerIds,
   editableLayerIds,
   vectorLayers,
@@ -8,12 +8,25 @@ export {
   type LayerId,
   isLayerId
 } from "./layers";
-export {
+import {
   rasters,
   type RasterDefinition,
   type RasterId,
   isRasterId
 } from "./rasters";
+
+export { env };
+export type { AppEnv } from "./env";
+export {
+  layerIds,
+  editableLayerIds,
+  vectorLayers,
+  type GeometryType,
+  type LayerDefinition,
+  type LayerId,
+  isLayerId
+};
+export { rasters, type RasterDefinition, type RasterId, isRasterId };
 
 export const registry = {
   env,

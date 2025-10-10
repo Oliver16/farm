@@ -29,12 +29,12 @@ Set the following environment variables for **development**, **preview**, and **
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Supabase anonymous key |
-| `NEXT_PUBLIC_BASEMAP_STYLE_URL` | Public | URL to the MapLibre style referencing PMTiles |
+| `NEXT_PUBLIC_BASEMAP_STYLE_URL` | Public | MapTiler style JSON URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server | Service role key for RPC write operations |
 | `FEATURESERV_BASE` | Server | Base URL for pg_featureserv proxy |
 | `TILESERV_BASE` | Server | Base URL for pg_tileserv proxy |
 | `TITILER_BASE` | Server | Base URL for TiTiler instances |
-| `PMTILES_BASE` | Server | Base URL to Supabase Storage PMTiles bucket |
+| `PMTILES_BASE` | Server | Base URL to Supabase Storage PMTiles bucket (kept for compatibility) |
 | `GEO_API_KEY` | Server (optional) | API key forwarded to geo services |
 
 Create `.env.local`, `.env.preview`, and `.env.production` files inside `apps/web/` (or configure hosting provider secrets) with these values.
@@ -88,9 +88,22 @@ The `OrgSwitcher` reads from the `org_memberships` table and expects a foreign r
 
 ## Geo Services
 
-- `pg_featureserv` is proxied through `/api/features/{layer}`.
-- `pg_tileserv` can be proxied through `/api/tiles/*` (or consumed directly by MapLibre).
-- `TiTiler` is proxied through `/api/rasters/{id}/tilejson` which builds a TileJSON response pointing to the configured COG.
+- `pg_featureserv` is proxied through `/api/features/{layer}`. Every request must include `org_id`; 401/403 responses are surfaced to the UI as "No access for this organization." If your geo stack expects an `x-geo-key` header, set `GEO_API_KEY` so the proxy forwards it automatically.
+- `pg_tileserv` tiles are consumed directly from `TILESERV_BASE` using the `public.v_tiles_*` views. If you prefer a single origin you can enable `/api/tiles/*` which forwards the same requests.
+- `TiTiler` COGs are accessed through `/api/rasters/{id}/tilejson`. The route looks up the raster in Supabase, composes an `s3://` URL (default bucket `rasters`), and fetches the TileJSON from `${TITILER_BASE}/cog/tilejson.json`. The proxy also injects `x-geo-key` when configured and caches responses for 30 seconds.
+
+### Rasters & TiTiler
+
+1. Raster metadata lives in the `rasters` table (at minimum: `id`, `org_id`, `key`, and optionally `bucket` or `s3_url`).
+2. The frontend composes `s3://rasters/<key>` URLs, requests TileJSON through `/api/rasters/{id}/tilejson?org_id=...`, and renders MapLibre raster layers with `raster-resampling` set per raster definition.
+3. Toggle errors are surfaced to the user as "Raster unavailable." so operators know when a COG or TiTiler is unreachable.
+
+### Adding a New Raster
+
+1. Upload the Cloud Optimized GeoTIFF to the `rasters` bucket (or the bucket expected by TiTiler).
+2. Insert a row into the Supabase `rasters` table containing the `id`, `org_id`, optional `farm_id` or `type`, and the object storage `key` (or full `s3_url`).
+3. The layer registry already exposes toggles for the known raster IDs (`ortho`, `dem_hillshade`). Adding a new row automatically makes the raster available to organizations that reference it.
+4. No secrets are exposed to the browser—TileJSON requests are proxied server-side where the `x-geo-key` header is attached when required.
 
 ## Running Against Cloud Run / Load Balancer
 

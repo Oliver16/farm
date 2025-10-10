@@ -32,9 +32,35 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     headers["x-geo-key"] = registry.env.GEO_API_KEY;
   }
 
-  const response = await fetch(targetUrl.toString(), {
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(targetUrl.toString(), {
+      headers,
+      cache: "no-store"
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "UPSTREAM_UNAVAILABLE",
+          message: (error as Error).message || "Feature service unavailable"
+        }
+      },
+      { status: 502 }
+    );
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "NO_ACCESS",
+          message: "No access for this organization."
+        }
+      },
+      { status: response.status }
+    );
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({
@@ -44,5 +70,9 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
   }
 
   const data = await response.json();
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: {
+      "Cache-Control": "max-age=30, s-maxage=60"
+    }
+  });
 }
