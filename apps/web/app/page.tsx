@@ -6,6 +6,7 @@ import { EditToolbar } from "../components/EditToolbar";
 import { AttributePanel } from "../components/AttributePanel";
 import { MapCanvas } from "../components/MapCanvas";
 import { Toasts } from "../components/Toasts";
+import { OrgInviteManager } from "../components/OrgInviteManager";
 
 export default async function HomePage() {
   await requireSession();
@@ -63,6 +64,7 @@ export default async function HomePage() {
         }}
       >
         <AttributePanel />
+        <OrgInviteManager />
       </aside>
       <Toasts />
     </main>
