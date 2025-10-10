@@ -19,3 +19,16 @@ export const requireSession = async () => {
   }
   return session;
 };
+
+export const getUserOrgCount = async () => {
+  const supabase = createServerSupabaseClient();
+  const { count, error } = await supabase
+    .from("org_memberships")
+    .select("org_id", { count: "exact", head: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
+};

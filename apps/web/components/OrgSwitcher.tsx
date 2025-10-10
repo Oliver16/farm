@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSupabase } from "./AppProviders";
 import { useAppStore } from "../lib/store";
 
@@ -46,6 +47,7 @@ export const OrgSwitcher = () => {
   const pushToast = useAppStore((state) => state.pushToast);
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const stored = window.localStorage.getItem("activeOrgId");
@@ -83,6 +85,37 @@ export const OrgSwitcher = () => {
       window.localStorage.setItem("activeOrgId", activeOrgId);
     }
   }, [activeOrgId]);
+
+  if (!loading && orgs.length === 0) {
+    return (
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.75rem"
+        }}
+      >
+        <span style={{ fontSize: "0.9rem", opacity: 0.85 }}>
+          No organizations yet
+        </span>
+        <button
+          type="button"
+          onClick={() => router.push("/onboarding")}
+          className="focus-ring"
+          style={{
+            padding: "0.5rem 0.75rem",
+            borderRadius: "0.65rem",
+            border: "1px solid rgba(125, 211, 252, 0.4)",
+            background: "rgba(14, 116, 144, 0.6)",
+            color: "inherit",
+            cursor: "pointer"
+          }}
+        >
+          Create organization
+        </button>
+      </div>
+    );
+  }
 
   return (
     <label
