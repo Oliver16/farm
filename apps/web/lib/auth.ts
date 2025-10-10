@@ -20,15 +20,28 @@ export const requireSession = async () => {
   return session;
 };
 
+// Returns the number of organizations the current user can access that have at
+// least one farm defined. Users without a farm should remain in the onboarding
+// flow.
 export const getUserOrgCount = async () => {
   const supabase = createServerSupabaseClient();
-  const { count, error } = await supabase
-    .from("org_memberships")
-    .select("org_id", { count: "exact", head: true });
+  const { data, error } = await supabase
+    .from("farms")
+    .select("org_id");
 
   if (error) {
     throw error;
   }
 
-  return count ?? 0;
+  type FarmRow = { org_id: string | null };
+  const farms = (data ?? []) as FarmRow[];
+  const orgIds = new Set<string>();
+
+  for (const farm of farms) {
+    if (typeof farm.org_id === "string" && farm.org_id.length > 0) {
+      orgIds.add(farm.org_id);
+    }
+  }
+
+  return orgIds.size;
 };
