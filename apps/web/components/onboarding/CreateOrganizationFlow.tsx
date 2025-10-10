@@ -105,12 +105,13 @@ export const CreateOrganizationFlow = () => {
     <section
       style={{
         background: "rgba(8, 18, 26, 0.9)",
-        padding: "1.5rem",
+        padding: "1.75rem",
         borderRadius: "1rem",
         border: "1px solid rgba(94, 234, 212, 0.2)",
         display: "flex",
         flexDirection: "column",
-        gap: "1rem"
+        gap: "1.25rem",
+        width: "100%"
       }}
     >
       <div>

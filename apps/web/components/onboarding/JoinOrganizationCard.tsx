@@ -58,7 +58,8 @@ export const JoinOrganizationCard = () => {
         border: "1px solid rgba(148, 163, 184, 0.25)",
         display: "flex",
         flexDirection: "column",
-        gap: "1rem"
+        gap: "1rem",
+        width: "100%"
       }}
     >
       <div>
