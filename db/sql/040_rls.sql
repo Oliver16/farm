@@ -4,6 +4,8 @@ CREATE OR REPLACE FUNCTION has_org_role(target_org_id UUID, allowed_roles org_ro
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public
 AS $$
     SELECT EXISTS (
         SELECT 1
@@ -18,6 +20,8 @@ CREATE OR REPLACE FUNCTION is_org_member(target_org_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public
 AS $$
     SELECT EXISTS (
         SELECT 1
