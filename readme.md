@@ -33,6 +33,7 @@ Set the following environment variables for **development**, **preview**, and **
 | `SUPABASE_SERVICE_ROLE_KEY` | Server | Service role key for RPC write operations |
 | `FEATURESERV_BASE` | Server | Base URL for pg_featureserv proxy |
 | `TILESERV_BASE` | Server | Base URL for pg_tileserv proxy |
+| `NEXT_PUBLIC_TILE_PROXY_BASE` | Public (optional) | Override for the tile template base (defaults to `/api/tiles`) |
 | `TITILER_BASE` | Server | Base URL for TiTiler instances |
 | `GEO_API_KEY` | Server (optional) | API key forwarded to geo services |
 
@@ -88,7 +89,7 @@ The `OrgSwitcher` reads from the `org_memberships` table and expects a foreign r
 ## Geo Services
 
 - `pg_featureserv` is proxied through `/api/features/{layer}`. Every request must include `org_id`; 401/403 responses are surfaced to the UI as "No access for this organization." If your geo stack expects an `x-geo-key` header, set `GEO_API_KEY` so the proxy forwards it automatically.
-- `pg_tileserv` tiles are consumed directly from `TILESERV_BASE` using the `public.v_tiles_*` views. If you prefer a single origin you can enable `/api/tiles/*` which forwards the same requests.
+- `pg_tileserv` tiles are requested through `/api/tiles/{z}/{x}/{y}` by default so that MapLibre loads tiles from the same origin. Override `NEXT_PUBLIC_TILE_PROXY_BASE` if you need to point the frontend at a different tile host.
 - `TiTiler` COGs are accessed through `/api/rasters/{id}/tilejson`. The route looks up the raster in Supabase, composes an `s3://` URL (default bucket `rasters`), and fetches the TileJSON from `${TITILER_BASE}/cog/tilejson.json`. The proxy also injects `x-geo-key` when configured and caches responses for 30 seconds.
 
 ### Rasters & TiTiler
