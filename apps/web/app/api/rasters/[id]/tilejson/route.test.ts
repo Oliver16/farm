@@ -42,7 +42,7 @@ describe("rasters tilejson proxy", () => {
   it("fetches tilejson from titiler with geo key header", async () => {
     registry.env.GEO_API_KEY = "geo-secret";
     maybeSingle.mockResolvedValueOnce({
-      data: { id: "ortho", key: "ortho/demo.tif", bucket: "rasters" },
+      data: { id: "ortho", cog_url: "s3://rasters/ortho/demo.tif" },
       error: null
     });
     mockFetch.mockResolvedValueOnce(
