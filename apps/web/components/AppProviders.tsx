@@ -2,9 +2,9 @@
 
 import { SWRConfig } from "swr";
 import type { ReactNode } from "react";
-import { createBrowserSupabaseClient } from "../lib/supabase";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { createContext, useContext, useMemo, useState } from "react";
-import type { TypedSupabaseClient } from "../lib/supabase";
+import type { TypedSupabaseClient } from "@/lib/supabase/types";
 
 const SupabaseContext = createContext<TypedSupabaseClient | null>(null);
 

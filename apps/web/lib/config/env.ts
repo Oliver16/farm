@@ -16,13 +16,16 @@ const optionalEnvSchema = z.object({
 
 export const env = {
   ...requiredEnvSchema.parse({
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NEXT_PUBLIC_BASEMAP_STYLE_URL: process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
-    FEATURESERV_BASE: process.env.FEATURESERV_BASE,
-    TILESERV_BASE: process.env.TILESERV_BASE,
-    TITILER_BASE: process.env.TITILER_BASE,
-    PMTILES_BASE: process.env.PMTILES_BASE
+    NEXT_PUBLIC_SUPABASE_URL:
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://localhost:54321",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "dev-anon-key",
+    NEXT_PUBLIC_BASEMAP_STYLE_URL:
+      process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL ?? "https://example.com/style.json",
+    FEATURESERV_BASE: process.env.FEATURESERV_BASE ?? "https://example.com/features",
+    TILESERV_BASE: process.env.TILESERV_BASE ?? "https://example.com/tiles",
+    TITILER_BASE: process.env.TITILER_BASE ?? "https://example.com/titiler",
+    PMTILES_BASE: process.env.PMTILES_BASE ?? "https://example.com/pmtiles"
   }),
   ...optionalEnvSchema.parse({
     GEO_API_KEY: process.env.GEO_API_KEY
