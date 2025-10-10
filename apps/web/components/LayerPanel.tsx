@@ -1,11 +1,11 @@
 "use client";
 
-import type { RasterConfig, VectorLayerConfig } from "../lib/types/layers";
-import { registry } from "../lib/config";
+import { registry, type LayerDefinition, type RasterDefinition } from "../lib/config";
 import { useAppStore } from "../lib/store";
 
 export const LayerPanel = () => {
-  const { layerList, rasterList } = registry;
+  const layerList: LayerDefinition[] = registry.layerList;
+  const rasterList: RasterDefinition[] = registry.rasterList;
   const layerVisibility = useAppStore((state) => state.layerVisibility);
   const toggleLayerVisibility = useAppStore((state) => state.toggleLayerVisibility);
   const activeLayerId = useAppStore((state) => state.activeLayerId);
@@ -19,7 +19,7 @@ export const LayerPanel = () => {
         Layers
       </h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {layerList.map((layer: VectorLayerConfig) => (
+        {layerList.map((layer: LayerDefinition) => (
           <div
             key={layer.id}
             style={{
@@ -51,7 +51,7 @@ export const LayerPanel = () => {
       </div>
       <h3 style={{ marginBottom: "0.5rem", marginTop: "1.5rem" }}>Rasters</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {rasterList.map((raster: RasterConfig) => (
+        {rasterList.map((raster: RasterDefinition) => (
           <label
             key={raster.id}
             style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
