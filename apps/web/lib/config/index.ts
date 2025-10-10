@@ -32,8 +32,8 @@ export const registry = {
   env,
   vectorLayers,
   rasters,
-  layerList: Object.values(vectorLayers),
-  rasterList: Object.values(rasters)
+  layerList,
+  rasterList
 };
 
 export type LayerRegistry = typeof registry;

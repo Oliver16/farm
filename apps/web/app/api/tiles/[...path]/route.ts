@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { registry } from "../../../../lib/config";
+import { registry } from "@/lib/config";
 
 export async function GET(
   request: NextRequest,

@@ -42,13 +42,14 @@ export const useMapController = () => {
 
   const { featureCollection, mutate, updateBounds } = useFeatureFetcher(
     activeLayerId,
-    activeOrgId
+    activeOrgId ?? null
   );
 
   const activeLayerIdRef = useLatest(activeLayerId);
   const activeOrgIdRef = useLatest(activeOrgId);
   const pushToastRef = useLatest(pushToast);
   const mutateRef = useLatest(mutate);
+  const layerVisibilityRef = useLatest(layerVisibility);
 
   useEffect(() => {
     setSelectedFeature(undefined);
@@ -72,12 +73,22 @@ export const useMapController = () => {
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
+    type DrawModeImplementation = MapboxDraw.DrawCustomMode<
+      Record<string, unknown>,
+      Record<string, unknown>
+    >;
+
     const draw = new MapboxDraw({
       displayControlsDefault: false,
-      modes: MapboxDraw.modes
+      // maplibre-gl-draw's types don't reflect the runtime shape of `modes`.
+      modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>
     });
 
-    map.addControl(draw, "top-left");
+    const changeMode = draw.changeMode.bind(draw) as (
+      mode: MapboxDraw.DrawMode
+    ) => MapboxDraw;
+
+    map.addControl(draw as unknown as maplibregl.IControl, "top-left");
 
     mapRef.current = map;
     drawRef.current = draw;
@@ -85,6 +96,8 @@ export const useMapController = () => {
     const markDirty = () => setDrawDirty(true);
 
     map.on("load", () => {
+      const visibility = layerVisibilityRef.current;
+
       registry.layerList.forEach((layer) => {
         if (!map.getSource(layer.id)) {
           map.addSource(layer.id, {
@@ -102,11 +115,11 @@ export const useMapController = () => {
             source: layer.id,
             "source-layer": layer.sourceLayer,
             paint: {
-              "fill-color": layer.paint["fill-color"],
-              "fill-opacity": layer.paint["fill-opacity"] ?? 0.25
+              "fill-color": layer.paint?.["fill-color"],
+              "fill-opacity": layer.paint?.["fill-opacity"] ?? 0.25
             },
             layout: {
-              visibility: layerVisibility[layer.id] ? "visible" : "none"
+              visibility: visibility?.[layer.id] ? "visible" : "none"
             }
           });
         }
@@ -118,11 +131,11 @@ export const useMapController = () => {
             source: layer.id,
             "source-layer": layer.sourceLayer,
             paint: {
-              "line-color": layer.paint["line-color"],
-              "line-width": layer.paint["line-width"] ?? 1.5
+              "line-color": layer.paint?.["line-color"],
+              "line-width": layer.paint?.["line-width"] ?? 1.5
             },
             layout: {
-              visibility: layerVisibility[layer.id] ? "visible" : "none"
+              visibility: visibility?.[layer.id] ? "visible" : "none"
             }
           });
         }
@@ -181,9 +194,9 @@ export const useMapController = () => {
     });
 
     const handleDrawStart = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { mode?: string };
+      const detail = (event as CustomEvent<{ mode?: MapboxDraw.DrawMode }>).detail;
       if (!detail?.mode) return;
-      draw.changeMode(detail.mode as any);
+      changeMode(detail.mode);
     };
 
     const handleDrawDelete = () => {
@@ -290,7 +303,9 @@ export const useMapController = () => {
       drawRef.current = null;
     };
   }, [
+    activeLayerIdRef,
     activeOrgIdRef,
+    layerVisibilityRef,
     mutateRef,
     pushToastRef,
     setDrawDirty,
@@ -302,7 +317,7 @@ export const useMapController = () => {
 
   useLayerVisibility(mapRef, layerVisibility);
 
-  useRasterVisibility(mapRef, rasterVisibility, activeOrgId, pushToastRef);
+  useRasterVisibility(mapRef, rasterVisibility, activeOrgId ?? null, pushToastRef);
 
   return { containerRef };
 };

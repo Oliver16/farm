@@ -11,6 +11,34 @@ interface OrgRecord {
   } | null;
 }
 
+const parseOrgRecord = (row: unknown): OrgRecord | null => {
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const record = row as Record<string, unknown>;
+  const orgId = record.org_id;
+  if (typeof orgId !== "string") {
+    return null;
+  }
+
+  const organizationsValue = record.organizations;
+  if (organizationsValue && typeof organizationsValue === "object") {
+    const name = (organizationsValue as Record<string, unknown>).name;
+    if (typeof name === "string") {
+      return {
+        org_id: orgId,
+        organizations: { name }
+      };
+    }
+  }
+
+  return {
+    org_id: orgId,
+    organizations: null
+  };
+};
+
 export const OrgSwitcher = () => {
   const supabase = useSupabase();
   const activeOrgId = useAppStore((state) => state.activeOrgId);
@@ -36,9 +64,12 @@ export const OrgSwitcher = () => {
       if (error) {
         pushToast({ type: "error", message: error.message });
       } else {
-        setOrgs(data ?? []);
-        if (!activeOrgId && data && data.length > 0) {
-          setActiveOrgId(data[0].org_id);
+        const records = (Array.isArray(data) ? data : [])
+          .map(parseOrgRecord)
+          .filter((record): record is OrgRecord => record !== null);
+        setOrgs(records);
+        if (!activeOrgId && records.length > 0) {
+          setActiveOrgId(records[0].org_id);
         }
       }
       setLoading(false);
