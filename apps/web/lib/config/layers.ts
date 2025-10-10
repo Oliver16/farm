@@ -28,7 +28,9 @@ export interface LayerDefinition extends VectorLayerConfig {
   layout?: FillLayerSpecification["layout"];
 }
 
-const { FEATURESERV_BASE, TILESERV_BASE } = env;
+const { FEATURESERV_BASE } = env;
+const TILE_PROXY_BASE =
+  process.env.NEXT_PUBLIC_TILE_PROXY_BASE?.replace(/\/$/, "") ?? "/api/tiles";
 
 export const vectorLayers: Record<LayerId, LayerDefinition> = {
   farms: {
@@ -37,7 +39,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     editable: true,
     defaultVisible: true,
     geomType: "MultiPolygon",
-    tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_farms/{z}/{x}/{y}.pbf`,
+    tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_farms/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/farms/items`,
     rpcUpsert: "farms_upsert",
     rpcDelete: "farms_delete",
@@ -57,7 +59,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     editable: true,
     defaultVisible: true,
     geomType: "MultiPolygon",
-    tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_fields/{z}/{x}/{y}.pbf`,
+    tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_fields/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/fields/items`,
     rpcUpsert: "fields_upsert",
     rpcDelete: "fields_delete",
@@ -77,7 +79,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     editable: true,
     defaultVisible: true,
     geomType: "MultiPolygon",
-    tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_buildings/{z}/{x}/{y}.pbf`,
+    tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_buildings/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/buildings/items`,
     rpcUpsert: "buildings_upsert",
     rpcDelete: "buildings_delete",
@@ -97,7 +99,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     editable: true,
     defaultVisible: true,
     geomType: "MultiPolygon",
-    tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_greenhouses/{z}/{x}/{y}.pbf`,
+    tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouses/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouses/items`,
     rpcUpsert: "greenhouses_upsert",
     rpcDelete: "greenhouses_delete",
@@ -117,7 +119,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     editable: true,
     defaultVisible: true,
     geomType: "MultiPolygon",
-    tilesUrlTemplate: `${TILESERV_BASE}/public.v_tiles_greenhouse_areas/{z}/{x}/{y}.pbf`,
+    tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouse_areas/{z}/{x}/{y}.pbf`,
     featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouse_areas/items`,
     rpcUpsert: "greenhouse_areas_upsert",
     rpcDelete: "greenhouse_areas_delete",
