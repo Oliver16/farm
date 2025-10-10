@@ -84,9 +84,9 @@ export const useMapController = () => {
       modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>
     });
 
-    const changeMode = (mode: DrawMode) => {
-      draw.changeMode(mode as Parameters<MapboxDraw["changeMode"]>[0]);
-    };
+    const changeMode = draw.changeMode.bind(draw) as (
+      mode: DrawMode
+    ) => MapboxDraw;
 
     map.addControl(draw as unknown as maplibregl.IControl, "top-left");
 

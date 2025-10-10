@@ -32,7 +32,10 @@ export async function GET(
   }
 
   const client = createServiceRoleSupabaseClient();
-  const { data, error }: PostgrestMaybeSingleResponse<RasterRow> = await client
+  const {
+    data: raster,
+    error
+  }: PostgrestMaybeSingleResponse<RasterRow> = await client
     .from("rasters")
     .select("id, org_id, bucket, key, s3_url")
     .eq("id", id)
