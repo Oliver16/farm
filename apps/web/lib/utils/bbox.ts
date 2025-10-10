@@ -1,4 +1,4 @@
-import type { LngLatBoundsLike } from "maplibre-gl";
+import type { LngLatBounds, LngLatBoundsLike } from "maplibre-gl";
 
 export type BboxTuple = [number, number, number, number];
 
@@ -14,8 +14,10 @@ export const boundsToTuple = (bounds: LngLatBoundsLike): BboxTuple => {
     return [minLng, minLat, maxLng, maxLat];
   }
 
-  const { _sw, _ne } = bounds as any;
-  return [_sw.lng, _sw.lat, _ne.lng, _ne.lat];
+  const mapBounds = bounds as LngLatBounds;
+  const southWest = mapBounds.getSouthWest();
+  const northEast = mapBounds.getNorthEast();
+  return [southWest.lng, southWest.lat, northEast.lng, northEast.lat];
 };
 
 export const bboxToQueryString = (bbox: BboxTuple): string =>

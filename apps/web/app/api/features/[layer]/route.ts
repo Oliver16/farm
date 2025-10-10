@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isLayerId, registry } from "../../../../lib/config";
+import { isLayerId, registry } from "@/lib/config";
 
 export async function GET(request: NextRequest, { params }: { params: { layer: string } }) {
   const { layer } = params;

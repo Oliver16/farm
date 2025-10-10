@@ -4,11 +4,11 @@ import { NextRequest } from "next/server";
 const rpcMock = vi.fn();
 const client = { rpc: rpcMock };
 
-vi.mock("../../../../lib/supabase", () => ({
+vi.mock("@/lib/supabase/service-role", () => ({
   createServiceRoleSupabaseClient: vi.fn(() => client)
 }));
 
-import { createServiceRoleSupabaseClient } from "../../../../lib/supabase";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { DELETE, POST } from "./route";
 
 describe("write route", () => {
