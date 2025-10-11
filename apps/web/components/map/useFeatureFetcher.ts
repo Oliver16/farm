@@ -59,7 +59,6 @@ export const useFeatureFetcher = (
         `/api/features/${layerConfig.collectionId}` +
         `?org_id=${activeOrgId}` +
         `&bbox=${bboxParam}` +
-        `&bbox-crs=EPSG:4326` +
         `&limit=${PAGE_LIMIT}`;
 
       // coalesce rapid updates to avoid hammering server

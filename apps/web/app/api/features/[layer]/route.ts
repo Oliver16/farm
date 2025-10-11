@@ -11,10 +11,6 @@ const clampLimit = (raw: string | null, max = 200) => {
   }
   return Math.min(Math.floor(parsed), max);
 };
-const addIfMissing = (u: URL, key: string, value: string) => {
-  if (!u.searchParams.has(key)) u.searchParams.set(key, value);
-};
-
 export async function GET(request: NextRequest, { params }: { params: { layer: string } }) {
   const { layer } = params;
 
@@ -56,7 +52,13 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
   });
   targetUrl.searchParams.set("org_id", orgId);
   targetUrl.searchParams.set("limit", String(limit));
-  addIfMissing(targetUrl, "bbox-crs", "EPSG:4326");
+
+  const bboxCrs = registry?.env?.FEATURESERV_BBOX_CRS;
+  if (bboxCrs && !targetUrl.searchParams.has("bbox-crs")) {
+    if (bboxCrs === "CRS84" || bboxCrs === "EPSG:4326") {
+      targetUrl.searchParams.set("bbox-crs", bboxCrs);
+    }
+  }
 
   const headers: Record<string, string> = {};
   const serviceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
