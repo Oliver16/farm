@@ -124,7 +124,6 @@ export const useMapController = () => {
     type DrawModeImplementation = DrawCustomMode<Record<string, unknown>, Record<string, unknown>>;
     const draw = new MapboxDraw({
       displayControlsDefault: false,
-      // @ts-expect-error upstream types mismatch runtime
       modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>,
       styles: drawStyles
     });
