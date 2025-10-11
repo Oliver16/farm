@@ -139,13 +139,13 @@ export const useMapController = () => {
 
     const handleLoad = () => {
       rebuildVectorSources(map, activeOrgIdRef.current ?? null, layerVisibilityRef.current);
-      updateBounds(map.getBounds());
+      updateBounds(map.getBounds(), map.getZoom());
     };
 
     map.on("load", handleLoad);
 
     const debouncedMove = debounce(() => {
-      updateBounds(map.getBounds());
+      updateBounds(map.getBounds(), map.getZoom());
     }, 300);
 
     map.on("moveend", debouncedMove);
