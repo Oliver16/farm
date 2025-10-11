@@ -88,8 +88,8 @@ The `OrgSwitcher` reads from the `org_memberships` table and expects a foreign r
 
 ## Geo Services
 
-- `pg_featureserv` is proxied through `/api/features/{layer}`. Every request must include `org_id`; 401/403 responses are surfaced to the UI as "No access for this organization." If your geo stack expects an `x-geo-key` header, set `GEO_API_KEY` so the proxy forwards it automatically.
-- `pg_tileserv` tiles are requested through `/api/tiles/{z}/{x}/{y}` by default so that MapLibre loads tiles from the same origin. Override `NEXT_PUBLIC_TILE_PROXY_BASE` if you need to point the frontend at a different tile host.
+- `pg_featureserv` is proxied through `/api/features/{layer}`. Every request must include `org_id`; 401/403 responses are surfaced to the UI as "No access for this organization." If your geo stack expects an `x-geo-key` header, set `GEO_API_KEY` so the proxy forwards it automatically. Map the `public.farms` collection to the `public.fs_farms_items(org_id, bbox)` SECURITY DEFINER function so that FeatureServ can query farms without needing the `auth` schema. Grant the executing role (e.g. `featureserv`) permission to run that function.
+- `pg_tileserv` tiles are requested through `/api/tiles/{z}/{x}/{y}` by default so that MapLibre loads tiles from the same origin. Override `NEXT_PUBLIC_TILE_PROXY_BASE` if you need to point the frontend at a different tile host. Vector layers are published as the `public.v_tiles_*` views; grant your tile service role SELECT on those views and filter organizations via the `where=org_id='<uuid>'` query parameter as the frontend now does automatically.
 - `TiTiler` COGs are accessed through `/api/rasters/{id}/tilejson`. The route looks up the raster in Supabase, composes an `s3://` URL (default bucket `rasters`), and fetches the TileJSON from `${TITILER_BASE}/cog/tilejson.json`. The proxy also injects `x-geo-key` when configured and caches responses for 30 seconds.
 
 ### Rasters & TiTiler

@@ -30,8 +30,15 @@ const debounce = (fn: () => void, delay: number) => {
   };
 };
 
-const tilesWithOrg = (template: string, orgId?: string | null) =>
-  [orgId ? `${template}?org_id=${encodeURIComponent(orgId)}` : template];
+const withQuery = (template: string, query: string) =>
+  template.includes("?") ? `${template}&${query}` : `${template}?${query}`;
+
+const tilesForOrg = (template: string, orgId?: string | null) =>
+  [
+    orgId
+      ? withQuery(template, `where=${encodeURIComponent(`org_id='${orgId}'`)}`)
+      : template
+  ];
 
 const rebuildVectorSources = (
   map: maplibregl.Map,
@@ -45,7 +52,7 @@ const rebuildVectorSources = (
 
     map.addSource(layer.id, {
       type: "vector",
-      tiles: tilesWithOrg(layer.tilesUrlTemplate, orgId),
+      tiles: tilesForOrg(layer.tilesUrlTemplate, orgId),
       minzoom: layer.minzoom,
       maxzoom: layer.maxzoom
     });
