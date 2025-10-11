@@ -54,21 +54,24 @@ export async function GET(request: NextRequest) {
     summaries.push({ id: row.type, acquiredAt: row.acquired_at ?? null });
   }
 
-  const rasters: RasterWithMetadata[] = summaries
-    .map((summary) => {
-      const definition = registry.rasters[summary.id];
-      if (!definition) return null;
-      return {
-        id: definition.id,
-        title: definition.title,
-        tilejsonUrl: definition.tilejsonUrl,
-        defaultVisible: definition.defaultVisible ?? false,
-        resampling: definition.resampling,
-        opacity: definition.opacity,
-        acquiredAt: summary.acquiredAt
-      };
-    })
-    .filter((value): value is RasterWithMetadata => Boolean(value));
+  const rasters = summaries.reduce<RasterWithMetadata[]>((acc, summary) => {
+    const definition = registry.rasters[summary.id];
+    if (!definition) {
+      return acc;
+    }
+
+    acc.push({
+      id: definition.id,
+      title: definition.title,
+      tilejsonUrl: definition.tilejsonUrl,
+      defaultVisible: definition.defaultVisible ?? false,
+      resampling: definition.resampling,
+      opacity: definition.opacity,
+      acquiredAt: summary.acquiredAt
+    });
+
+    return acc;
+  }, []);
 
   return NextResponse.json({ rasters });
 }
