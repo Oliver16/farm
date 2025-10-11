@@ -1,7 +1,7 @@
 // MapLibre-safe styles for @mapbox/mapbox-gl-draw
 // NO data expressions for line-dasharray, only constants.
 
-import type { AnyLayer } from "maplibre-gl";
+import type { LayerSpecification } from "maplibre-gl";
 
 const blue = "#3b82f6";
 const cyan = "#22d3ee";
@@ -10,7 +10,7 @@ const gray = "#9ca3af";
 const fillSel = "rgba(59,130,246,0.12)";
 const fillCold = "rgba(148,163,184,0.08)";
 
-export const drawStyles: AnyLayer[] = [
+export const drawStyles: LayerSpecification[] = [
   // Polygon fill (inactive)
   {
     id: "gl-draw-polygon-fill.cold",
