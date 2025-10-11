@@ -18,7 +18,6 @@ export type GeometryType = "MultiPolygon" | "Polygon";
 
 export interface LayerDefinition extends VectorLayerConfig {
   geomType: GeometryType;
-  collectionId: string;
   rpcUpsert: string;
   rpcDelete: string;
   sourceLayer: string;
@@ -50,7 +49,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_farms/{z}/{x}/{y}.pbf`,
-    collectionId: "farms",
+    collectionId: "public.farms",
     rpcUpsert: "farms_upsert",
     rpcDelete: "farms_delete",
     minzoom: 4,
@@ -70,7 +69,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_fields/{z}/{x}/{y}.pbf`,
-    collectionId: "fields",
+    collectionId: "public.fields",
     rpcUpsert: "fields_upsert",
     rpcDelete: "fields_delete",
     minzoom: 8,
@@ -90,7 +89,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_buildings/{z}/{x}/{y}.pbf`,
-    collectionId: "buildings",
+    collectionId: "public.buildings",
     rpcUpsert: "buildings_upsert",
     rpcDelete: "buildings_delete",
     minzoom: 12,
@@ -110,7 +109,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouses/{z}/{x}/{y}.pbf`,
-    collectionId: "greenhouses",
+    collectionId: "public.greenhouses",
     rpcUpsert: "greenhouses_upsert",
     rpcDelete: "greenhouses_delete",
     minzoom: 12,
@@ -130,7 +129,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouse_areas/{z}/{x}/{y}.pbf`,
-    collectionId: "greenhouse_areas",
+    collectionId: "public.greenhouse_areas",
     rpcUpsert: "greenhouse_areas_upsert",
     rpcDelete: "greenhouse_areas_delete",
     minzoom: 14,

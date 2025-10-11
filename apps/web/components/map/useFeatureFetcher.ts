@@ -2,18 +2,21 @@ import { useCallback, useState } from "react";
 import type { FeatureCollection } from "geojson";
 import useSWR from "swr";
 import type maplibregl from "maplibre-gl";
+import { registry, type LayerId } from "../../lib/config";
 import { bboxToQueryString, boundsToTuple } from "../../lib/utils/bbox";
 import { jsonFetcher } from "../../lib/fetcher";
 
 export const useFeatureFetcher = (
-  activeLayerId: string | null,
+  activeLayerId: LayerId | null,
   activeOrgId: string | null
 ) => {
   const [bboxParam, setBboxParam] = useState<string | null>(null);
 
+  const layerConfig = activeLayerId ? registry.vectorLayers[activeLayerId] : null;
+
   const featuresKey =
-    activeLayerId && activeOrgId && bboxParam
-      ? `/api/features/${activeLayerId}?org_id=${activeOrgId}&bbox=${bboxParam}&limit=500`
+    layerConfig && activeOrgId && bboxParam
+      ? `/api/features/${layerConfig.collectionId}?org_id=${activeOrgId}&bbox=${bboxParam}&limit=500`
       : null;
 
   const { data: featureCollection, mutate } = useSWR<FeatureCollection>(

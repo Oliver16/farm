@@ -8,7 +8,11 @@ const ensureTrailingSlash = (value: string) =>
 export async function GET(request: NextRequest, { params }: { params: { layer: string } }) {
   const { layer } = params;
 
-  if (!isLayerId(layer)) {
+  const layerConfig = isLayerId(layer)
+    ? registry.vectorLayers[layer]
+    : registry.layerList.find((definition) => definition.collectionId === layer);
+
+  if (!layerConfig) {
     return NextResponse.json(
       { error: { code: "LAYER_NOT_FOUND", message: "Unknown layer" } },
       { status: 404 }
@@ -23,7 +27,6 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     );
   }
 
-  const layerConfig = registry.vectorLayers[layer];
   const targetUrl = new URL(
     `collections/${layerConfig.collectionId}/items`,
     ensureTrailingSlash(registry.env.FEATURESERV_BASE)

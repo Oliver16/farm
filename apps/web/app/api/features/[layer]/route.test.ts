@@ -19,9 +19,11 @@ describe("features proxy", () => {
     );
 
     const request = new NextRequest(
-      new Request("http://localhost/api/features/farms?org_id=test-org&bbox=1,2,3,4")
+      new Request(
+        "http://localhost/api/features/public.farms?org_id=test-org&bbox=1,2,3,4"
+      )
     );
-    const response = await GET(request, { params: { layer: "farms" } });
+    const response = await GET(request, { params: { layer: "public.farms" } });
 
     expect(response.status).toBe(200);
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -39,9 +41,9 @@ describe("features proxy", () => {
     );
 
     const request = new NextRequest(
-      new Request("http://localhost/api/features/farms?org_id=test-org")
+      new Request("http://localhost/api/features/public.farms?org_id=test-org")
     );
-    await GET(request, { params: { layer: "farms" } });
+    await GET(request, { params: { layer: "public.farms" } });
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect((init?.headers as Record<string, string>)["x-geo-key"]).toBe("geo-secret");
@@ -51,12 +53,26 @@ describe("features proxy", () => {
     mockFetch.mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
     const request = new NextRequest(
-      new Request("http://localhost/api/features/farms?org_id=test-org")
+      new Request("http://localhost/api/features/public.farms?org_id=test-org")
     );
-    const response = await GET(request, { params: { layer: "farms" } });
+    const response = await GET(request, { params: { layer: "public.farms" } });
     const body = await response.json();
 
     expect(response.status).toBe(403);
     expect(body.error.message).toBe("No access for this organization.");
+  });
+
+  it("accepts layer ids for backwards compatibility", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ features: [] }), { status: 200 })
+    );
+
+    const request = new NextRequest(
+      new Request("http://localhost/api/features/farms?org_id=test-org")
+    );
+    const response = await GET(request, { params: { layer: "farms" } });
+    expect(response.status).toBe(200);
+    const [url] = mockFetch.mock.calls[0] as [string];
+    expect(url).toContain("/collections/public.farms/items");
   });
 });
