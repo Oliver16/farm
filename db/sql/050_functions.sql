@@ -62,3 +62,30 @@ BEGIN
     );
 END;
 $$;
+
+-- SECURITY DEFINER wrapper for pg_featureserv so requests no longer rely on
+-- RLS policies that touch the auth schema.
+CREATE OR REPLACE FUNCTION public.fs_farms_items(
+    p_org UUID,
+    p_bbox GEOMETRY(Polygon, 4326) DEFAULT NULL
+)
+RETURNS SETOF public.farms
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT *
+    FROM public.farms
+    WHERE org_id = p_org
+      AND (p_bbox IS NULL OR ST_Intersects(geom, p_bbox));
+$$;
+
+REVOKE ALL ON FUNCTION public.fs_farms_items(UUID, geometry) FROM PUBLIC;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'featureserv') THEN
+        GRANT EXECUTE ON FUNCTION public.fs_farms_items(UUID, geometry) TO featureserv;
+    END IF;
+END
+$$;

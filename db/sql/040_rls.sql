@@ -1,6 +1,45 @@
--- Row level security policies enforcing organization membership and roles
+-- Helper for extracting claims without touching the auth schema so that
+-- service roles without JWT context can still execute definer functions.
+CREATE OR REPLACE FUNCTION public.current_jwt_claim(claim TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    claims JSONB;
+BEGIN
+    BEGIN
+        claims := current_setting('request.jwt.claims', true)::JSONB;
+    EXCEPTION
+        WHEN others THEN
+            RETURN NULL;
+    END;
 
-CREATE OR REPLACE FUNCTION is_superuser(check_user UUID DEFAULT auth.uid())
+    RETURN claims ->> claim;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.request_user_id()
+RETURNS UUID
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    sub TEXT;
+BEGIN
+    sub := public.current_jwt_claim('sub');
+    IF sub IS NULL OR sub = '' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN sub::UUID;
+EXCEPTION
+    WHEN invalid_text_representation THEN
+        RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION is_superuser(check_user UUID DEFAULT public.request_user_id())
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -8,7 +47,7 @@ AS $$
     SELECT EXISTS (
         SELECT 1
         FROM superusers s
-        WHERE s.user_id = check_user
+        WHERE s.user_id = COALESCE(check_user, public.request_user_id())
     );
 $$;
 
@@ -23,7 +62,7 @@ AS $$
             SELECT 1
             FROM org_memberships m
             WHERE m.org_id = target_org_id
-              AND m.user_id = auth.uid()
+              AND m.user_id = public.request_user_id()
               AND m.role = ANY(allowed_roles)
         );
 $$;
@@ -39,7 +78,7 @@ AS $$
             SELECT 1
             FROM org_memberships m
             WHERE m.org_id = target_org_id
-              AND m.user_id = auth.uid()
+              AND m.user_id = public.request_user_id()
         );
 $$;
 
