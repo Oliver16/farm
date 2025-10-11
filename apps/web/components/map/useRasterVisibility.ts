@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type maplibregl from "maplibre-gl";
 import { jsonFetcher } from "../../lib/fetcher";
 import { registry, type RasterDefinition, type RasterId } from "../../lib/config";
@@ -41,11 +41,15 @@ export const useRasterVisibility = (
     ((payload: { type: "error" | "success" | "info"; message: string }) => void) | undefined
   >
 ) => {
+  const previousOrgIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const removeRaster = (rasterId: RasterId) => {
+    const previousOrgId = previousOrgIdRef.current;
+
+    const removeRaster = (rasterId: RasterId, orgId: string | null = activeOrgId) => {
       const sourceId = `raster-${rasterId}`;
       const layerId = `${sourceId}-layer`;
       if (map.getLayer(layerId)) {
@@ -54,27 +58,32 @@ export const useRasterVisibility = (
       if (map.getSource(sourceId)) {
         map.removeSource(sourceId);
       }
-      if (activeOrgId) {
-        tilejsonCache.delete(`${rasterId}:${activeOrgId}`);
+      if (orgId) {
+        tilejsonCache.delete(`${rasterId}:${orgId}`);
       }
     };
 
-    const removeAllRasters = () => {
+    const removeAllRasters = (orgId: string | null = activeOrgId) => {
       const style = map.getStyle();
       const sources = style?.sources ? Object.keys(style.sources) : [];
       sources
         .filter((sourceId) => sourceId.startsWith("raster-"))
         .forEach((sourceId) => {
           const rasterId = sourceId.replace(/^raster-/, "") as RasterId;
-          removeRaster(rasterId);
+          removeRaster(rasterId, orgId);
         });
-      if (!activeOrgId) {
+      if (!orgId) {
         tilejsonCache.clear();
       }
     };
 
+    if (previousOrgId && previousOrgId !== activeOrgId) {
+      removeAllRasters(previousOrgId);
+    }
+
     if (!activeOrgId) {
-      removeAllRasters();
+      removeAllRasters(null);
+      previousOrgIdRef.current = activeOrgId;
       return;
     }
 
@@ -170,11 +179,13 @@ export const useRasterVisibility = (
 
     if (!map.isStyleLoaded()) {
       map.once("load", applyVisibility);
+      previousOrgIdRef.current = activeOrgId;
       return () => {
         map.off("load", applyVisibility);
       };
     }
 
     applyVisibility();
+    previousOrgIdRef.current = activeOrgId;
   }, [activeOrgId, mapRef, pushToastRef, rasterVisibility, rasters]);
 };
