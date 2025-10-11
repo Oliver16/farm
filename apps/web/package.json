@@ -9,14 +9,18 @@
     "lint": "next lint",
     "test": "vitest",
     "test:api": "vitest run --config vitest.api.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "ingest:ortho": "node ./scripts/ingest-ortho.mjs"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.46.1",
+    "epsg-index": "^1.1.1",
+    "geotiff": "^2.1.3",
     "maplibre-gl": "^3.5.2",
+    "proj4": "^2.11.0",
     "nanoid": "^5.0.6",
     "next": "^14.2.3",
     "pmtiles": "^3.0.6",
