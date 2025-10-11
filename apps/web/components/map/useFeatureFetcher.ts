@@ -3,7 +3,7 @@ import type { FeatureCollection } from "geojson";
 import useSWR from "swr";
 import type maplibregl from "maplibre-gl";
 import { registry, type LayerId } from "../../lib/config";
-import { bboxToQueryString } from "../../lib/utils/bbox";
+import { bboxToQueryString, type BboxTuple } from "../../lib/utils/bbox";
 
 const PAGE_LIMIT = 200;
 const MIN_FETCH_ZOOM = 10; // avoid huge bboxes
@@ -53,7 +53,8 @@ export const useFeatureFetcher = (
         return;
       }
 
-      const bboxParam = bboxToQueryString([[minX, minY], [maxX, maxY]]);
+      const bbox: BboxTuple = [minX, minY, maxX, maxY];
+      const bboxParam = bboxToQueryString(bbox);
       const url =
         `/api/features/${layerConfig.collectionId}` +
         `?org_id=${activeOrgId}` +
