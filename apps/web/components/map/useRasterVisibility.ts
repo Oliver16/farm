@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
 import { jsonFetcher } from "../../lib/fetcher";
-import { registry, type RasterId } from "../../lib/config";
+import { registry, type RasterDefinition, type RasterId } from "../../lib/config";
 
 type TileJson = {
   tiles?: string[];
@@ -9,6 +9,8 @@ type TileJson = {
   minzoom?: number;
   maxzoom?: number;
 };
+
+type AvailableRaster = RasterDefinition & { acquiredAt?: string | null };
 
 const tilejsonCache = new Map<string, Promise<TileJson>>();
 
@@ -32,6 +34,7 @@ const getTilejson = (rasterId: RasterId, orgId: string, url: string) => {
 
 export const useRasterVisibility = (
   mapRef: React.MutableRefObject<maplibregl.Map | null>,
+  rasters: AvailableRaster[],
   rasterVisibility: Record<RasterId, boolean>,
   activeOrgId: string | null,
   pushToastRef: React.MutableRefObject<
@@ -40,10 +43,60 @@ export const useRasterVisibility = (
 ) => {
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !activeOrgId) return;
+    if (!map) return;
+
+    const removeRaster = (rasterId: RasterId) => {
+      const sourceId = `raster-${rasterId}`;
+      const layerId = `${sourceId}-layer`;
+      if (map.getLayer(layerId)) {
+        map.removeLayer(layerId);
+      }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+      if (activeOrgId) {
+        tilejsonCache.delete(`${rasterId}:${activeOrgId}`);
+      }
+    };
+
+    const removeAllRasters = () => {
+      const style = map.getStyle();
+      const sources = style?.sources ? Object.keys(style.sources) : [];
+      sources
+        .filter((sourceId) => sourceId.startsWith("raster-"))
+        .forEach((sourceId) => {
+          const rasterId = sourceId.replace(/^raster-/, "") as RasterId;
+          removeRaster(rasterId);
+        });
+      if (!activeOrgId) {
+        tilejsonCache.clear();
+      }
+    };
+
+    if (!activeOrgId) {
+      removeAllRasters();
+      return;
+    }
 
     const applyVisibility = () => {
-      registry.rasterList.forEach(async (raster) => {
+      const availableIds = new Set(rasters.map((raster) => raster.id));
+
+      const style = map.getStyle();
+      const sources = style?.sources ? Object.keys(style.sources) : [];
+      sources
+        .filter((sourceId) => sourceId.startsWith("raster-"))
+        .forEach((sourceId) => {
+          const rasterId = sourceId.replace(/^raster-/, "") as RasterId;
+          if (!availableIds.has(rasterId)) {
+            removeRaster(rasterId);
+          }
+        });
+
+      if (rasters.length === 0) {
+        return;
+      }
+
+      rasters.forEach(async (raster) => {
         const sourceId = `raster-${raster.id}`;
         const layerId = `${sourceId}-layer`;
         const isVisible = rasterVisibility[raster.id];
@@ -101,12 +154,7 @@ export const useRasterVisibility = (
               map.setLayoutProperty(layerId, "visibility", "visible");
             }
           } catch (error) {
-            if (map.getLayer(layerId)) {
-              map.removeLayer(layerId);
-            }
-            if (map.getSource(sourceId)) {
-              map.removeSource(sourceId);
-            }
+            removeRaster(raster.id);
             tilejsonCache.delete(cacheKey);
             pushToastRef.current?.({
               type: "error",
@@ -114,12 +162,7 @@ export const useRasterVisibility = (
             });
           }
         } else {
-          if (map.getLayer(layerId)) {
-            map.removeLayer(layerId);
-          }
-          if (map.getSource(sourceId)) {
-            map.removeSource(sourceId);
-          }
+          removeRaster(raster.id);
           tilejsonCache.delete(cacheKey);
         }
       });
@@ -133,5 +176,5 @@ export const useRasterVisibility = (
     }
 
     applyVisibility();
-  }, [activeOrgId, mapRef, pushToastRef, rasterVisibility]);
+  }, [activeOrgId, mapRef, pushToastRef, rasterVisibility, rasters]);
 };

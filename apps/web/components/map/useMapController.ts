@@ -86,6 +86,7 @@ export const useMapController = () => {
   const activeOrgId = useAppStore((state) => state.activeOrgId);
   const layerVisibility = useAppStore((state) => state.layerVisibility);
   const rasterVisibility = useAppStore((state) => state.rasterVisibility);
+  const availableRasters = useAppStore((state) => state.availableRasters);
   const setSelectedFeature = useAppStore((state) => state.setSelectedFeature);
   const pushToast = useAppStore((state) => state.pushToast);
   const setDrawDirty = useAppStore((state) => state.setDrawDirty);
@@ -324,7 +325,13 @@ export const useMapController = () => {
 
   useDrawSync(drawRef, featureCollection, activeLayerId, setDrawDirty);
   useLayerVisibility(mapRef, layerVisibility);
-  useRasterVisibility(mapRef, rasterVisibility, activeOrgId ?? null, pushToastRef);
+  useRasterVisibility(
+    mapRef,
+    availableRasters,
+    rasterVisibility,
+    activeOrgId ?? null,
+    pushToastRef
+  );
 
   useEffect(() => {
     const map = mapRef.current;
