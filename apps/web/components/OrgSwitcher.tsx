@@ -37,17 +37,33 @@ export const OrgSwitcher = () => {
       return;
     }
 
-    if (data?.orgs) {
-      setOrgs(data.orgs);
-      if (!activeOrgId && data.orgs.length > 0) {
-        setActiveOrgId(data.orgs[0].id);
+    if (!data?.orgs) {
+      return;
+    }
+
+    setOrgs(data.orgs);
+
+    if (data.orgs.length === 0) {
+      if (activeOrgId) {
+        setActiveOrgId(undefined);
       }
+      return;
+    }
+
+    const hasActiveOrg = activeOrgId
+      ? data.orgs.some((org) => org.id === activeOrgId)
+      : false;
+
+    if (!activeOrgId || !hasActiveOrg) {
+      setActiveOrgId(data.orgs[0].id);
     }
   }, [data, error, activeOrgId, setActiveOrgId, pushToast]);
 
   useEffect(() => {
     if (activeOrgId) {
       window.localStorage.setItem("activeOrgId", activeOrgId);
+    } else {
+      window.localStorage.removeItem("activeOrgId");
     }
   }, [activeOrgId]);
 
