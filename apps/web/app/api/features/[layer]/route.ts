@@ -11,6 +11,9 @@ const clampLimit = (raw: string | null, max = 200) => {
   }
   return Math.min(Math.floor(parsed), max);
 };
+const addIfMissing = (u: URL, key: string, value: string) => {
+  if (!u.searchParams.has(key)) u.searchParams.set(key, value);
+};
 
 export async function GET(request: NextRequest, { params }: { params: { layer: string } }) {
   const { layer } = params;
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
   });
   targetUrl.searchParams.set("org_id", orgId);
   targetUrl.searchParams.set("limit", String(limit));
+  addIfMissing(targetUrl, "bbox-crs", "EPSG:4326");
 
   const headers: Record<string, string> = {};
   const serviceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -64,9 +68,9 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     headers["x-geo-key"] = registry.env.GEO_API_KEY;
   }
 
-  let response: Response;
+  let upstream: Response;
   try {
-    response = await fetch(targetUrl.toString(), {
+    upstream = await fetch(targetUrl.toString(), {
       headers,
       cache: "no-store"
     });
@@ -82,7 +86,7 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     );
   }
 
-  if (response.status === 401 || response.status === 403) {
+  if (upstream.status === 401 || upstream.status === 403) {
     return NextResponse.json(
       {
         error: {
@@ -90,18 +94,22 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
           message: "No access for this organization."
         }
       },
-      { status: response.status }
+      { status: upstream.status }
     );
   }
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: { code: "UPSTREAM_ERROR", message: response.statusText }
-    }));
-    return NextResponse.json(error, { status: response.status });
+  if (!upstream.ok) {
+    const bodyText = await upstream.text().catch(() => "");
+    let body: unknown;
+    try {
+      body = JSON.parse(bodyText);
+    } catch {
+      body = { error: { code: "UPSTREAM_ERROR", message: bodyText || upstream.statusText } };
+    }
+    return NextResponse.json(body, { status: upstream.status });
   }
 
-  const data = await response.json();
+  const data = await upstream.json();
   return NextResponse.json(data, {
     headers: {
       "Cache-Control": "max-age=30, s-maxage=60"
