@@ -8,7 +8,9 @@ import { createCogTileJsonUrl } from "@/lib/config/rasters";
 type RasterRow = {
   id: string;
   org_id: string;
+  type: string;
   cog_url: string | null;
+  acquired_at: string | null;
 };
 
 const errorResponse = (status: number, code: string, message: string) =>
@@ -29,32 +31,58 @@ export async function GET(
     return errorResponse(400, "ORG_ID_REQUIRED", "org_id is required");
   }
 
-  const client = createServiceRoleSupabaseClient();
-  const {
-    data: raster,
-    error
-  }: PostgrestMaybeSingleResponse<RasterRow> = await client
-    .from("rasters")
-    .select("id, org_id, cog_url")
-    .eq("id", id)
-    .eq("org_id", orgId)
-    .maybeSingle<RasterRow>();
+  const directUrl = request.nextUrl.searchParams.get("url");
 
-  if (error) {
-    return errorResponse(500, "SUPABASE_ERROR", error.message ?? "Failed to load raster");
+  const getCogUrl = async (): Promise<string> => {
+    if (directUrl) {
+      return directUrl;
+    }
+
+    const client = createServiceRoleSupabaseClient();
+    const {
+      data: raster,
+      error
+    }: PostgrestMaybeSingleResponse<RasterRow> = await client
+      .from("rasters")
+      .select("id, org_id, type, cog_url, acquired_at")
+      .eq("org_id", orgId)
+      .eq("type", id)
+      .order("acquired_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle<RasterRow>();
+
+    if (error) {
+      throw new Error(error.message ?? "Failed to load raster");
+    }
+
+    if (!raster) {
+      throw new Error("Raster not found");
+    }
+
+    if (!raster.cog_url) {
+      throw new Error("Raster cog_url is missing");
+    }
+
+    return raster.cog_url;
+  };
+
+  let cogUrl: string;
+  try {
+    cogUrl = await getCogUrl();
+  } catch (error) {
+    const message = (error as Error).message;
+    if (message === "Raster not found") {
+      return errorResponse(404, "RASTER_NOT_FOUND", message);
+    }
+
+    if (message === "Raster cog_url is missing") {
+      return errorResponse(500, "RASTER_PATH_INVALID", message);
+    }
+
+    return errorResponse(500, "SUPABASE_ERROR", message || "Failed to load raster");
   }
 
-  if (!raster) {
-    return errorResponse(404, "RASTER_NOT_FOUND", "Raster not found");
-  }
-
-  const s3Url = raster.cog_url ?? undefined;
-
-  if (!s3Url) {
-    return errorResponse(500, "RASTER_PATH_INVALID", "Raster cog_url is missing");
-  }
-
-  const tilejsonUrl = createCogTileJsonUrl(s3Url);
+  const tilejsonUrl = createCogTileJsonUrl(cogUrl);
   const headers: Record<string, string> = {};
   if (registry.env.GEO_API_KEY) {
     headers["x-geo-key"] = registry.env.GEO_API_KEY;

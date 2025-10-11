@@ -22,6 +22,8 @@ interface AppState {
   setActiveLayerId: (id: LayerId | null) => void;
   layerVisibility: Record<LayerId, boolean>;
   toggleLayerVisibility: (id: LayerId) => void;
+  availableRasters: RasterWithMetadata[];
+  setAvailableRasters: (rasters: { id: RasterId; acquiredAt: string | null }[]) => void;
   rasterVisibility: Record<RasterId, boolean>;
   toggleRasterVisibility: (id: RasterId) => void;
   setAllRastersVisibility: (visible: boolean) => void;
@@ -44,22 +46,24 @@ const initialLayerVisibility = registry.layerList.reduce(
   {} as Record<LayerId, boolean>
 );
 
-const buildRasterVisibility = (visible: boolean) =>
-  registry.rasterList.reduce(
+type RasterWithMetadata = (typeof registry.rasterList)[number] & {
+  acquiredAt: string | null;
+};
+
+const buildRasterVisibility = (
+  rasters: RasterWithMetadata[],
+  previous: Partial<Record<RasterId, boolean>>,
+  fallback: (id: RasterId) => boolean
+) =>
+  rasters.reduce(
     (acc, raster) => ({
       ...acc,
-      [raster.id]: visible
+      [raster.id]: previous[raster.id] ?? fallback(raster.id)
     }),
     {} as Record<RasterId, boolean>
   );
 
-const initialRasterVisibility = registry.rasterList.reduce(
-  (acc, raster) => ({
-    ...acc,
-    [raster.id]: raster.defaultVisible ?? false
-  }),
-  {} as Record<RasterId, boolean>
-);
+const initialRasterVisibility = {} as Record<RasterId, boolean>;
 
 export const useAppStore = create<AppState>((set) => ({
   activeLayerId: registry.layerList[0]?.id ?? null,
@@ -69,17 +73,48 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       layerVisibility: { ...state.layerVisibility, [id]: !state.layerVisibility[id] }
     })),
+  availableRasters: [],
+  setAvailableRasters: (rasters) =>
+    set((state) => {
+      const enriched = rasters
+        .map((raster) => {
+          const definition = registry.rasters[raster.id];
+          if (!definition) return null;
+          return { ...definition, acquiredAt: raster.acquiredAt } as RasterWithMetadata;
+        })
+        .filter((value): value is RasterWithMetadata => Boolean(value));
+
+      const fallback = (id: RasterId) => registry.rasters[id]?.defaultVisible ?? false;
+      const visibility = buildRasterVisibility(enriched, state.rasterVisibility, fallback);
+
+      return {
+        availableRasters: enriched,
+        rasterVisibility: visibility
+      };
+    }),
   rasterVisibility: initialRasterVisibility,
   toggleRasterVisibility: (id) =>
-    set((state) => ({
-      rasterVisibility: {
-        ...state.rasterVisibility,
-        [id]: !state.rasterVisibility[id]
+    set((state) => {
+      if (!state.availableRasters.some((raster) => raster.id === id)) {
+        return state;
       }
-    })),
+
+      return {
+        rasterVisibility: {
+          ...state.rasterVisibility,
+          [id]: !state.rasterVisibility[id]
+        }
+      };
+    }),
   setAllRastersVisibility: (visible) =>
-    set(() => ({
-      rasterVisibility: buildRasterVisibility(visible)
+    set((state) => ({
+      rasterVisibility: state.availableRasters.reduce(
+        (acc, raster) => ({
+          ...acc,
+          [raster.id]: visible
+        }),
+        {} as Record<RasterId, boolean>
+      )
     })),
   editMode: "view",
   setEditMode: (mode) => set({ editMode: mode }),
