@@ -13,6 +13,7 @@ import { useLayerVisibility } from "./useLayerVisibility";
 import { useRasterVisibility } from "./useRasterVisibility";
 import { errorMessages } from "./constants";
 import { getFeatureCollectionBounds } from "../../lib/utils/geojson";
+import { drawStyles } from "./drawStyles";
 
 const identifyLayerFromId = (layerId: string): LayerId | null =>
   registry.layerList.find((layer) => layerId.startsWith(layer.id))?.id ?? null;
@@ -24,11 +25,55 @@ const DEFAULT_ORG_LAYER: LayerId = "farms";
 const debounce = (fn: () => void, delay: number) => {
   let timeoutId: number | undefined;
   return () => {
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-    }
+    if (timeoutId) window.clearTimeout(timeoutId);
     timeoutId = window.setTimeout(fn, delay);
   };
+};
+
+const tilesWithOrg = (template: string, orgId?: string | null) =>
+  [orgId ? `${template}?org_id=${encodeURIComponent(orgId)}` : template];
+
+const rebuildVectorSources = (
+  map: maplibregl.Map,
+  orgId: string | null,
+  visibility: Record<LayerId, boolean>
+) => {
+  registry.layerList.forEach((layer) => {
+    if (map.getLayer(`${layer.id}-fill`)) map.removeLayer(`${layer.id}-fill`);
+    if (map.getLayer(`${layer.id}-line`)) map.removeLayer(`${layer.id}-line`);
+    if (map.getSource(layer.id)) map.removeSource(layer.id);
+
+    map.addSource(layer.id, {
+      type: "vector",
+      tiles: tilesWithOrg(layer.tilesUrlTemplate, orgId),
+      minzoom: layer.minzoom,
+      maxzoom: layer.maxzoom
+    });
+
+    map.addLayer({
+      id: `${layer.id}-fill`,
+      type: "fill",
+      source: layer.id,
+      "source-layer": layer.sourceLayer,
+      paint: {
+        "fill-color": layer.paint?.["fill-color"],
+        "fill-opacity": layer.paint?.["fill-opacity"] ?? 0.25
+      },
+      layout: { visibility: visibility?.[layer.id] ? "visible" : "none" }
+    });
+
+    map.addLayer({
+      id: `${layer.id}-line`,
+      type: "line",
+      source: layer.id,
+      "source-layer": layer.sourceLayer,
+      paint: {
+        "line-color": layer.paint?.["line-color"],
+        "line-width": layer.paint?.["line-width"] ?? 1.5
+      },
+      layout: { visibility: visibility?.[layer.id] ? "visible" : "none" }
+    });
+  });
 };
 
 export const useMapController = () => {
@@ -62,9 +107,7 @@ export const useMapController = () => {
   }, [activeLayerId, setSelectedFeature]);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
-      return;
-    }
+    if (!containerRef.current || mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -78,20 +121,13 @@ export const useMapController = () => {
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    type DrawModeImplementation = DrawCustomMode<
-      Record<string, unknown>,
-      Record<string, unknown>
-    >;
-
+    type DrawModeImplementation = DrawCustomMode<Record<string, unknown>, Record<string, unknown>>;
     const draw = new MapboxDraw({
       displayControlsDefault: false,
-      // @mapbox/mapbox-gl-draw's types don't reflect the runtime shape of `modes`.
-      modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>
+      modes: MapboxDraw.modes as unknown as Record<string, DrawModeImplementation>,
+      styles: drawStyles
     });
-
-    const changeMode = draw.changeMode.bind(draw) as (
-      mode: DrawMode
-    ) => MapboxDraw;
+    const changeMode = draw.changeMode.bind(draw) as (mode: DrawMode) => MapboxDraw;
 
     map.addControl(draw as unknown as maplibregl.IControl, "top-left");
 
@@ -100,54 +136,12 @@ export const useMapController = () => {
 
     const markDirty = () => setDrawDirty(true);
 
-    map.on("load", () => {
-      const visibility = layerVisibilityRef.current;
-
-      registry.layerList.forEach((layer) => {
-        if (!map.getSource(layer.id)) {
-          map.addSource(layer.id, {
-            type: "vector",
-            tiles: [layer.tilesUrlTemplate],
-            minzoom: layer.minzoom,
-            maxzoom: layer.maxzoom
-          });
-        }
-
-        if (!map.getLayer(`${layer.id}-fill`)) {
-          map.addLayer({
-            id: `${layer.id}-fill`,
-            type: "fill",
-            source: layer.id,
-            "source-layer": layer.sourceLayer,
-            paint: {
-              "fill-color": layer.paint?.["fill-color"],
-              "fill-opacity": layer.paint?.["fill-opacity"] ?? 0.25
-            },
-            layout: {
-              visibility: visibility?.[layer.id] ? "visible" : "none"
-            }
-          });
-        }
-
-        if (!map.getLayer(`${layer.id}-line`)) {
-          map.addLayer({
-            id: `${layer.id}-line`,
-            type: "line",
-            source: layer.id,
-            "source-layer": layer.sourceLayer,
-            paint: {
-              "line-color": layer.paint?.["line-color"],
-              "line-width": layer.paint?.["line-width"] ?? 1.5
-            },
-            layout: {
-              visibility: visibility?.[layer.id] ? "visible" : "none"
-            }
-          });
-        }
-      });
-
+    const handleLoad = () => {
+      rebuildVectorSources(map, activeOrgIdRef.current ?? null, layerVisibilityRef.current);
       updateBounds(map.getBounds());
-    });
+    };
+
+    map.on("load", handleLoad);
 
     const debouncedMove = debounce(() => {
       updateBounds(map.getBounds());
@@ -158,14 +152,16 @@ export const useMapController = () => {
     map.on("draw.update", markDirty);
     map.on("draw.delete", markDirty);
 
-    map.on("draw.selectionchange", () => {
+    const handleSelectionChange = () => {
       const selection = draw.getSelected();
       if (selection.features.length > 0) {
         setSelectedFeature(selection.features[0] as Feature);
       }
-    });
+    };
 
-    map.on("click", async (event) => {
+    map.on("draw.selectionchange", handleSelectionChange);
+
+    const handleMapClick = async (event: maplibregl.MapMouseEvent & maplibregl.EventData) => {
       const orgId = activeOrgIdRef.current;
       if (!orgId) return;
       const layers = registry.layerList.flatMap((layer) => [
@@ -176,9 +172,7 @@ export const useMapController = () => {
       if (!features.length) return;
       const tileFeature = features[0];
       const layerId = identifyLayerFromId(tileFeature.layer.id ?? "");
-      const featureId = (
-        tileFeature.properties as Record<string, string> | undefined
-      )?.id;
+      const featureId = (tileFeature.properties as Record<string, string> | undefined)?.id;
       if (!layerId || !featureId) return;
       const layerConfig = registry.vectorLayers[layerId];
       try {
@@ -192,12 +186,11 @@ export const useMapController = () => {
           attributesRef.current = detail.features[0].properties ?? {};
         }
       } catch (error) {
-        pushToastRef.current?.({
-          type: "error",
-          message: (error as Error).message
-        });
+        pushToastRef.current?.({ type: "error", message: (error as Error).message });
       }
-    });
+    };
+
+    map.on("click", handleMapClick);
 
     const handleDrawStart = (event: Event) => {
       const detail = (event as CustomEvent<{ mode?: DrawMode }>).detail;
@@ -227,10 +220,7 @@ export const useMapController = () => {
       const pushToast = pushToastRef.current;
       const mutateFn = mutateRef.current;
       if (!layerId || !orgId || !pushToast || !mutateFn) {
-        pushToast?.({
-          type: "error",
-          message: "Select an organization and layer."
-        });
+        pushToast?.({ type: "error", message: "Select an organization and layer." });
         return;
       }
       const currentDraw = drawRef.current;
@@ -238,10 +228,7 @@ export const useMapController = () => {
       const selected =
         currentDraw.getSelected().features[0] ?? currentDraw.getAll().features[0];
       if (!selected) {
-        pushToast({
-          type: "info",
-          message: "Draw or select a feature to save."
-        });
+        pushToast({ type: "info", message: "Draw or select a feature to save." });
         return;
       }
 
@@ -253,11 +240,7 @@ export const useMapController = () => {
       };
 
       try {
-        const payload = validateFeaturePayload(
-          layer,
-          selected.geometry,
-          properties
-        );
+        const payload = validateFeaturePayload(layer, selected.geometry, properties);
         const response = await fetch(`/api/write/${layer.id}`, {
           method: "POST",
           headers: {
@@ -271,8 +254,7 @@ export const useMapController = () => {
           const code = error?.error?.code ?? "UNKNOWN";
           pushToast({
             type: "error",
-            message:
-              errorMessages[code] ?? error?.error?.message ?? "Save failed"
+            message: errorMessages[code] ?? error?.error?.message ?? "Save failed"
           });
           return;
         }
@@ -304,6 +286,13 @@ export const useMapController = () => {
       window.removeEventListener("map:draw:cancel", handleDrawCancel);
       window.removeEventListener("map:draw:save", handleSave);
       window.removeEventListener("map:attributes:update", handleAttributeUpdate);
+      map.off("load", handleLoad);
+      map.off("moveend", debouncedMove);
+      map.off("draw.create", markDirty);
+      map.off("draw.update", markDirty);
+      map.off("draw.delete", markDirty);
+      map.off("draw.selectionchange", handleSelectionChange);
+      map.off("click", handleMapClick);
       map.remove();
       mapRef.current = null;
       drawRef.current = null;
@@ -319,10 +308,22 @@ export const useMapController = () => {
     updateBounds
   ]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => rebuildVectorSources(map, activeOrgId ?? null, layerVisibility);
+    if (!map.isStyleLoaded()) {
+      map.once("load", apply);
+      return () => {
+        map.off("load", apply);
+      };
+    }
+    apply();
+  }, [activeOrgId, layerVisibility]);
+
   useDrawSync(drawRef, featureCollection, activeLayerId, setDrawDirty);
-
   useLayerVisibility(mapRef, layerVisibility);
-
   useRasterVisibility(mapRef, rasterVisibility, activeOrgId ?? null, pushToastRef);
 
   useEffect(() => {
@@ -341,11 +342,10 @@ export const useMapController = () => {
         flyToDefault();
         return;
       }
-
       try {
         const defaultLayer = registry.vectorLayers[DEFAULT_ORG_LAYER];
         const farms = await jsonFetcher<FeatureCollection>(
-          `/api/features/${defaultLayer.collectionId}?org_id=${activeOrgId}&limit=5000`
+          `/api/features/${defaultLayer.collectionId}?org_id=${activeOrgId}&limit=200`
         );
 
         if (cancelled) return;
@@ -355,19 +355,14 @@ export const useMapController = () => {
           flyToDefault();
           return;
         }
-
         const [[minLng, minLat], [maxLng, maxLat]] = bounds;
-
         if (minLng === maxLng && minLat === maxLat) {
           map.easeTo({ center: [minLng, minLat], zoom: 16 });
           return;
         }
-
         map.fitBounds(bounds, { padding: 64, maxZoom: 16, duration: 800 });
-      } catch (error) {
-        if (!cancelled) {
-          flyToDefault();
-        }
+      } catch {
+        if (!cancelled) flyToDefault();
       }
     };
 
@@ -375,9 +370,7 @@ export const useMapController = () => {
       const handleLoad = () => {
         void updateView();
       };
-
       map.once("load", handleLoad);
-
       return () => {
         cancelled = true;
         map.off("load", handleLoad);
@@ -385,7 +378,6 @@ export const useMapController = () => {
     }
 
     void updateView();
-
     return () => {
       cancelled = true;
     };

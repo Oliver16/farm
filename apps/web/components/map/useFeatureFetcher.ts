@@ -6,17 +6,18 @@ import { registry, type LayerId } from "../../lib/config";
 import { bboxToQueryString, boundsToTuple } from "../../lib/utils/bbox";
 import { jsonFetcher } from "../../lib/fetcher";
 
+const PAGE_LIMIT = 200;
+
 export const useFeatureFetcher = (
   activeLayerId: LayerId | null,
   activeOrgId: string | null
 ) => {
   const [bboxParam, setBboxParam] = useState<string | null>(null);
-
   const layerConfig = activeLayerId ? registry.vectorLayers[activeLayerId] : null;
 
   const featuresKey =
     layerConfig && activeOrgId && bboxParam
-      ? `/api/features/${layerConfig.collectionId}?org_id=${activeOrgId}&bbox=${bboxParam}&limit=500`
+      ? `/api/features/${layerConfig.collectionId}?org_id=${activeOrgId}&bbox=${bboxParam}&limit=${PAGE_LIMIT}`
       : null;
 
   const { data: featureCollection, mutate } = useSWR<FeatureCollection>(

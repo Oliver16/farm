@@ -2,8 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isLayerId, registry } from "@/lib/config";
 
-const ensureTrailingSlash = (value: string) =>
-  value.endsWith("/") ? value : `${value}/`;
+const ensureTrailingSlash = (value: string) => (value.endsWith("/") ? value : `${value}/`);
+const bboxRegex = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/;
+const clampLimit = (raw: string | null, max = 200) => {
+  const parsed = raw ? Number(raw) : undefined;
+  if (!parsed || !Number.isFinite(parsed) || parsed <= 0) {
+    return max;
+  }
+  return Math.min(Math.floor(parsed), max);
+};
 
 export async function GET(request: NextRequest, { params }: { params: { layer: string } }) {
   const { layer } = params;
@@ -27,6 +34,16 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     );
   }
 
+  const bbox = request.nextUrl.searchParams.get("bbox");
+  if (bbox && !bboxRegex.test(bbox)) {
+    return NextResponse.json(
+      { error: { code: "BBOX_INVALID", message: "bbox must be 'minX,minY,maxX,maxY'" } },
+      { status: 400 }
+    );
+  }
+
+  const limit = clampLimit(request.nextUrl.searchParams.get("limit"), 200);
+
   const targetUrl = new URL(
     `collections/${layerConfig.collectionId}/items`,
     ensureTrailingSlash(registry.env.FEATURESERV_BASE)
@@ -35,8 +52,14 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
     targetUrl.searchParams.set(key, value);
   });
   targetUrl.searchParams.set("org_id", orgId);
+  targetUrl.searchParams.set("limit", String(limit));
 
   const headers: Record<string, string> = {};
+  const serviceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceRoleKey) {
+    headers.apikey = serviceRoleKey;
+    headers.Authorization = `Bearer ${serviceRoleKey}`;
+  }
   if (registry.env.GEO_API_KEY) {
     headers["x-geo-key"] = registry.env.GEO_API_KEY;
   }
