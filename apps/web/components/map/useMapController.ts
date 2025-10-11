@@ -162,7 +162,7 @@ export const useMapController = () => {
 
     map.on("draw.selectionchange", handleSelectionChange);
 
-    const handleMapClick = async (event: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapClick = async (event: maplibregl.MapLayerMouseEvent) => {
       const orgId = activeOrgIdRef.current;
       if (!orgId) return;
       const layers = registry.layerList.flatMap((layer) => [
