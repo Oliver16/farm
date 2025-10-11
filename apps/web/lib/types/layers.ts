@@ -12,6 +12,7 @@ export interface VectorLayerConfig {
   maxzoom: number;
   tilesUrlTemplate: string;
   editable: boolean;
+  collectionId: string;
   // optional UI flags
   defaultVisible?: boolean;
 }

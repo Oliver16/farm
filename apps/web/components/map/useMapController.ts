@@ -180,9 +180,10 @@ export const useMapController = () => {
         tileFeature.properties as Record<string, string> | undefined
       )?.id;
       if (!layerId || !featureId) return;
+      const layerConfig = registry.vectorLayers[layerId];
       try {
         const detail = await jsonFetcher<FeatureCollection>(
-          `/api/features/${layerId}?org_id=${orgId}&filter=${encodeURIComponent(
+          `/api/features/${layerConfig.collectionId}?org_id=${orgId}&filter=${encodeURIComponent(
             JSON.stringify({ id: featureId })
           )}&limit=1`
         );
@@ -342,8 +343,9 @@ export const useMapController = () => {
       }
 
       try {
+        const defaultLayer = registry.vectorLayers[DEFAULT_ORG_LAYER];
         const farms = await jsonFetcher<FeatureCollection>(
-          `/api/features/${DEFAULT_ORG_LAYER}?org_id=${activeOrgId}&limit=5000`
+          `/api/features/${defaultLayer.collectionId}?org_id=${activeOrgId}&limit=5000`
         );
 
         if (cancelled) return;

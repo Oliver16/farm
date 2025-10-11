@@ -3,7 +3,6 @@ import type {
   LineLayerSpecification
 } from "maplibre-gl";
 import type { VectorLayerConfig, VectorLayerId } from "../types/layers";
-import { env } from "./env";
 
 export const layerIds = [
   "farms",
@@ -19,7 +18,6 @@ export type GeometryType = "MultiPolygon" | "Polygon";
 
 export interface LayerDefinition extends VectorLayerConfig {
   geomType: GeometryType;
-  featureCollectionPath: string;
   rpcUpsert: string;
   rpcDelete: string;
   sourceLayer: string;
@@ -28,9 +26,20 @@ export interface LayerDefinition extends VectorLayerConfig {
   layout?: FillLayerSpecification["layout"];
 }
 
-const { FEATURESERV_BASE } = env;
-const TILE_PROXY_BASE =
-  process.env.NEXT_PUBLIC_TILE_PROXY_BASE?.replace(/\/$/, "") ?? "/api/tiles";
+const resolveTileProxyBase = () => {
+  const raw = process.env.NEXT_PUBLIC_TILE_PROXY_BASE?.trim();
+  if (raw) {
+    return raw.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/api/tiles`;
+  }
+
+  return "/api/tiles";
+};
+
+const TILE_PROXY_BASE = resolveTileProxyBase();
 
 export const vectorLayers: Record<LayerId, LayerDefinition> = {
   farms: {
@@ -40,7 +49,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_farms/{z}/{x}/{y}.pbf`,
-    featureCollectionPath: `${FEATURESERV_BASE}/collections/farms/items`,
+    collectionId: "public.farms",
     rpcUpsert: "farms_upsert",
     rpcDelete: "farms_delete",
     minzoom: 4,
@@ -60,7 +69,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_fields/{z}/{x}/{y}.pbf`,
-    featureCollectionPath: `${FEATURESERV_BASE}/collections/fields/items`,
+    collectionId: "public.fields",
     rpcUpsert: "fields_upsert",
     rpcDelete: "fields_delete",
     minzoom: 8,
@@ -80,7 +89,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_buildings/{z}/{x}/{y}.pbf`,
-    featureCollectionPath: `${FEATURESERV_BASE}/collections/buildings/items`,
+    collectionId: "public.buildings",
     rpcUpsert: "buildings_upsert",
     rpcDelete: "buildings_delete",
     minzoom: 12,
@@ -100,7 +109,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouses/{z}/{x}/{y}.pbf`,
-    featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouses/items`,
+    collectionId: "public.greenhouses",
     rpcUpsert: "greenhouses_upsert",
     rpcDelete: "greenhouses_delete",
     minzoom: 12,
@@ -120,7 +129,7 @@ export const vectorLayers: Record<LayerId, LayerDefinition> = {
     defaultVisible: true,
     geomType: "MultiPolygon",
     tilesUrlTemplate: `${TILE_PROXY_BASE}/public.v_tiles_greenhouse_areas/{z}/{x}/{y}.pbf`,
-    featureCollectionPath: `${FEATURESERV_BASE}/collections/greenhouse_areas/items`,
+    collectionId: "public.greenhouse_areas",
     rpcUpsert: "greenhouse_areas_upsert",
     rpcDelete: "greenhouse_areas_delete",
     minzoom: 14,
