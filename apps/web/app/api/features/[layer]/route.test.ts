@@ -7,20 +7,23 @@ vi.stubGlobal("fetch", vi.fn());
 
 const mockFetch = fetch as unknown as ReturnType<typeof vi.fn>;
 
+const originalServiceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
+
 describe("features proxy", () => {
   beforeEach(() => {
     mockFetch.mockReset();
     registry.env.GEO_API_KEY = undefined;
+    registry.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
   });
 
-  it("forwards org_id and bbox to featureserv", async () => {
+  it("forwards org_id, bbox and clamps limit", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ features: [] }), { status: 200 })
     );
 
     const request = new NextRequest(
       new Request(
-        "http://localhost/api/features/public.farms?org_id=test-org&bbox=1,2,3,4"
+        "http://localhost/api/features/public.farms?org_id=test-org&bbox=1,2,3,4&limit=5000"
       )
     );
     const response = await GET(request, { params: { layer: "public.farms" } });
@@ -31,7 +34,21 @@ describe("features proxy", () => {
     const parsed = new URL(url);
     expect(parsed.searchParams.get("org_id")).toBe("test-org");
     expect(parsed.searchParams.get("bbox")).toBe("1,2,3,4");
+    expect(parsed.searchParams.get("limit")).toBe("200");
     expect(init?.headers).not.toBeUndefined();
+  });
+
+  it("rejects invalid bbox values", async () => {
+    const request = new NextRequest(
+      new Request(
+        "http://localhost/api/features/public.farms?org_id=test-org&bbox=bad-bbox"
+      )
+    );
+    const response = await GET(request, { params: { layer: "public.farms" } });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("BBOX_INVALID");
   });
 
   it("adds geo api key header when configured", async () => {
@@ -47,6 +64,23 @@ describe("features proxy", () => {
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect((init?.headers as Record<string, string>)["x-geo-key"]).toBe("geo-secret");
+  });
+
+  it("includes service role authorization headers", async () => {
+    registry.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ features: [] }), { status: 200 })
+    );
+
+    const request = new NextRequest(
+      new Request("http://localhost/api/features/public.farms?org_id=test-org")
+    );
+    await GET(request, { params: { layer: "public.farms" } });
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer service-role");
+    expect(headers.apikey).toBe("service-role");
   });
 
   it("returns a friendly message on authorization failures", async () => {
