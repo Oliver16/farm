@@ -11,7 +11,8 @@ const requiredEnvSchema = z.object({
 });
 
 const optionalEnvSchema = z.object({
-  GEO_API_KEY: z.string().optional()
+  GEO_API_KEY: z.string().optional(),
+  FEATURESERV_BBOX_CRS: z.enum(["CRS84", "EPSG:4326"]).optional()
 });
 
 const requiredEnvValues = requiredEnvSchema.safeParse({
@@ -33,7 +34,8 @@ if (!requiredEnvValues.success) {
 }
 
 const optionalEnvValues = optionalEnvSchema.safeParse({
-  GEO_API_KEY: process.env.GEO_API_KEY
+  GEO_API_KEY: process.env.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: process.env.FEATURESERV_BBOX_CRS
 });
 
 if (!optionalEnvValues.success) {
@@ -42,7 +44,8 @@ if (!optionalEnvValues.success) {
 
 export const env = {
   ...requiredEnvValues.data,
-  GEO_API_KEY: optionalEnvValues.data.GEO_API_KEY
+  GEO_API_KEY: optionalEnvValues.data.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: optionalEnvValues.data.FEATURESERV_BBOX_CRS
 };
 
 export type AppEnv = typeof env;
