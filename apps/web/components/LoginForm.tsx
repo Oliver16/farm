@@ -10,21 +10,32 @@ export const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus(null);
+    setIsSubmitting(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) {
-      setStatus(error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) {
+        setStatus(error.message);
+        return;
+      }
+
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to sign in", error);
+      setStatus(
+        "Unable to reach the authentication service. Check your connection and Supabase configuration, then try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push("/");
   };
 
   return (
@@ -46,6 +57,7 @@ export const LoginForm = () => {
       <input
         id="email"
         type="email"
+        autoComplete="username"
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
@@ -83,10 +95,12 @@ export const LoginForm = () => {
           background: "#22c55e",
           color: "#022c22",
           fontWeight: 600,
-          cursor: "pointer"
+          cursor: isSubmitting ? "not-allowed" : "pointer",
+          opacity: isSubmitting ? 0.75 : 1
         }}
+        disabled={isSubmitting}
       >
-        Sign in
+        {isSubmitting ? "Signing in..." : "Sign in"}
       </button>
       {status ? (
         <p style={{ margin: 0, fontSize: "0.9rem", textAlign: "center" }}>{status}</p>
