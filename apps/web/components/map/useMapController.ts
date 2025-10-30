@@ -1,9 +1,5 @@
 import { useEffect, useRef } from "react";
-import maplibregl, {
-  type AnyLayer,
-  type AnySourceData,
-  type StyleSetterOptions
-} from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import MapboxDraw, { type DrawCustomMode, type DrawMode } from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection } from "geojson";
 import { registry, type LayerId } from "../../lib/config";
@@ -138,26 +134,30 @@ export const useMapController = () => {
     const unpatchedAddLayer = map.addLayer;
     const unpatchedAddSource = map.addSource;
 
-    const skipDuplicateDrawLayer: typeof map.addLayer = (
-      layer: AnyLayer,
-      beforeId?: string,
-      options?: StyleSetterOptions
-    ) => {
-      if (drawLayerIds.has(layer.id) && map.getLayer(layer.id)) {
+    const skipDuplicateDrawLayer = (
+      ...args: Parameters<maplibregl.Map["addLayer"]>
+    ): ReturnType<maplibregl.Map["addLayer"]> => {
+      const [layer] = args;
+      if (
+        layer &&
+        "id" in layer &&
+        typeof layer.id === "string" &&
+        drawLayerIds.has(layer.id) &&
+        map.getLayer(layer.id)
+      ) {
         return map;
       }
-      return originalAddLayer(layer, beforeId, options);
+      return originalAddLayer(...args);
     };
 
-    const skipDuplicateDrawSource: typeof map.addSource = (
-      id: string,
-      source: AnySourceData,
-      options?: StyleSetterOptions
-    ) => {
-      if (drawSourceIds.has(id) && map.getSource(id)) {
+    const skipDuplicateDrawSource = (
+      ...args: Parameters<maplibregl.Map["addSource"]>
+    ): ReturnType<maplibregl.Map["addSource"]> => {
+      const [id] = args;
+      if (typeof id === "string" && drawSourceIds.has(id) && map.getSource(id)) {
         return map;
       }
-      return originalAddSource(id, source, options);
+      return originalAddSource(...args);
     };
 
     map.addLayer = skipDuplicateDrawLayer;
