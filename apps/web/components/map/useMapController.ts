@@ -126,6 +126,43 @@ export const useMapController = () => {
       zoom: DEFAULT_ZOOM
     });
 
+    const drawLayerIds = new Set(drawStyles.map((style) => style.id));
+    const drawSourceIds = new Set(["mapbox-gl-draw-hot", "mapbox-gl-draw-cold"]);
+
+    const originalAddLayer = map.addLayer.bind(map);
+    const originalAddSource = map.addSource.bind(map);
+    const unpatchedAddLayer = map.addLayer;
+    const unpatchedAddSource = map.addSource;
+
+    const skipDuplicateDrawLayer = (
+      ...args: Parameters<maplibregl.Map["addLayer"]>
+    ): ReturnType<maplibregl.Map["addLayer"]> => {
+      const [layer] = args;
+      if (
+        layer &&
+        "id" in layer &&
+        typeof layer.id === "string" &&
+        drawLayerIds.has(layer.id) &&
+        map.getLayer(layer.id)
+      ) {
+        return map;
+      }
+      return originalAddLayer(...args);
+    };
+
+    const skipDuplicateDrawSource = (
+      ...args: Parameters<maplibregl.Map["addSource"]>
+    ): ReturnType<maplibregl.Map["addSource"]> => {
+      const [id] = args;
+      if (typeof id === "string" && drawSourceIds.has(id) && map.getSource(id)) {
+        return map;
+      }
+      return originalAddSource(...args);
+    };
+
+    map.addLayer = skipDuplicateDrawLayer;
+    map.addSource = skipDuplicateDrawSource;
+
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
@@ -301,6 +338,8 @@ export const useMapController = () => {
       map.off("draw.delete", markDirty);
       map.off("draw.selectionchange", handleSelectionChange);
       map.off("click", handleMapClick);
+      map.addLayer = unpatchedAddLayer;
+      map.addSource = unpatchedAddSource;
       map.remove();
       mapRef.current = null;
       drawRef.current = null;
