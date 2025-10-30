@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, {
+  type AnyLayer,
+  type AnySourceData,
+  type StyleSetterOptions
+} from "maplibre-gl";
 import MapboxDraw, { type DrawCustomMode, type DrawMode } from "@mapbox/mapbox-gl-draw";
 import type { Feature, FeatureCollection } from "geojson";
 import { registry, type LayerId } from "../../lib/config";
@@ -125,6 +129,39 @@ export const useMapController = () => {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM
     });
+
+    const drawLayerIds = new Set(drawStyles.map((style) => style.id));
+    const drawSourceIds = new Set(["mapbox-gl-draw-hot", "mapbox-gl-draw-cold"]);
+
+    const originalAddLayer = map.addLayer.bind(map);
+    const originalAddSource = map.addSource.bind(map);
+    const unpatchedAddLayer = map.addLayer;
+    const unpatchedAddSource = map.addSource;
+
+    const skipDuplicateDrawLayer: typeof map.addLayer = (
+      layer: AnyLayer,
+      beforeId?: string,
+      options?: StyleSetterOptions
+    ) => {
+      if (drawLayerIds.has(layer.id) && map.getLayer(layer.id)) {
+        return map;
+      }
+      return originalAddLayer(layer, beforeId, options);
+    };
+
+    const skipDuplicateDrawSource: typeof map.addSource = (
+      id: string,
+      source: AnySourceData,
+      options?: StyleSetterOptions
+    ) => {
+      if (drawSourceIds.has(id) && map.getSource(id)) {
+        return map;
+      }
+      return originalAddSource(id, source, options);
+    };
+
+    map.addLayer = skipDuplicateDrawLayer;
+    map.addSource = skipDuplicateDrawSource;
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -301,6 +338,8 @@ export const useMapController = () => {
       map.off("draw.delete", markDirty);
       map.off("draw.selectionchange", handleSelectionChange);
       map.off("click", handleMapClick);
+      map.addLayer = unpatchedAddLayer;
+      map.addSource = unpatchedAddSource;
       map.remove();
       mapRef.current = null;
       drawRef.current = null;
