@@ -1,38 +1,53 @@
 import { z } from "zod";
 
-const requiredEnvKeys = [
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "NEXT_PUBLIC_BASEMAP_STYLE_URL",
-  "FEATURESERV_BASE",
-  "TILESERV_BASE",
-  "TITILER_BASE",
-  "SUPABASE_SERVICE_ROLE_KEY"
-] as const;
+const requiredEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: z.string().min(1),
+  FEATURESERV_BASE: z.string().url(),
+  TILESERV_BASE: z.string().url(),
+  TITILER_BASE: z.string().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1)
+});
 
-type RequiredEnvKey = (typeof requiredEnvKeys)[number];
+const optionalEnvSchema = z.object({
+  GEO_API_KEY: z.string().optional(),
+  FEATURESERV_BBOX_CRS: z.enum(["CRS84", "EPSG:4326"]).optional()
+});
 
-const isPresent = (value: string | undefined | null): value is string =>
-  typeof value === "string" && value.length > 0;
+const requiredEnvValues = requiredEnvSchema.safeParse({
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
+  FEATURESERV_BASE: process.env.FEATURESERV_BASE,
+  TILESERV_BASE: process.env.TILESERV_BASE,
+  TITILER_BASE: process.env.TITILER_BASE,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+});
 
-const missingRequiredEnvMessage = () => {
-  const missingKeys = requiredEnvKeys.filter((key) => !isPresent(process.env[key]));
+if (!requiredEnvValues.success) {
+  const missingKeys = requiredEnvValues.error.issues
+    .map((issue) => issue.path[0])
+    .filter((key): key is string => typeof key === "string");
+  const uniqueMissingKeys = [...new Set(missingKeys)];
+  const message = `Missing required environment variables: ${uniqueMissingKeys.join(", ")}`;
 
-  if (missingKeys.length === 0) {
-    return null;
-  }
+  throw new Error(message, { cause: requiredEnvValues.error });
+}
 
-  return `Missing required environment variables: ${missingKeys.join(", ")}`;
-};
+const optionalEnvValues = optionalEnvSchema.safeParse({
+  GEO_API_KEY: process.env.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: process.env.FEATURESERV_BBOX_CRS
+});
 
-const readRequiredEnv = (key: RequiredEnvKey): string => {
-  const value = process.env[key];
-  if (isPresent(value)) {
-    return value;
-  }
+if (!optionalEnvValues.success) {
+  throw optionalEnvValues.error;
+}
 
-  const message = missingRequiredEnvMessage();
-  throw new Error(message ?? `Missing required environment variable: ${key}`);
+export const env = {
+  ...requiredEnvValues.data,
+  GEO_API_KEY: optionalEnvValues.data.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: optionalEnvValues.data.FEATURESERV_BBOX_CRS
 };
 
 const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
