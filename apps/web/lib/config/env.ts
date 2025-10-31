@@ -16,18 +16,26 @@ const requiredEnvKeys = Object.keys(requiredEnvReaders) as Array<
 
 type RequiredEnvKey = keyof typeof requiredEnvReaders;
 
-const isPresent = (value: string | undefined | null): value is string =>
-  typeof value === "string" && value.length > 0;
+const requiredEnvValues = requiredEnvSchema.safeParse({
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
+  FEATURESERV_BASE: process.env.FEATURESERV_BASE,
+  TILESERV_BASE: process.env.TILESERV_BASE,
+  TITILER_BASE: process.env.TITILER_BASE,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+});
 
 const missingRequiredEnvMessage = () => {
   const missingKeys = requiredEnvKeys.filter((key) => !isPresent(requiredEnvReaders[key]()));
 
-  if (missingKeys.length === 0) {
-    return null;
-  }
+  throw new Error(message, { cause: requiredEnvValues.error });
+}
 
-  return `Missing required environment variables: ${missingKeys.join(", ")}`;
-};
+const optionalEnvValues = optionalEnvSchema.safeParse({
+  GEO_API_KEY: process.env.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: process.env.FEATURESERV_BBOX_CRS
+});
 
 const readRequiredEnv = (key: RequiredEnvKey): string => {
   const value = requiredEnvReaders[key]();
@@ -35,8 +43,10 @@ const readRequiredEnv = (key: RequiredEnvKey): string => {
     return value;
   }
 
-  const message = missingRequiredEnvMessage();
-  throw new Error(message ?? `Missing required environment variable: ${key}`);
+export const env = {
+  ...requiredEnvValues.data,
+  GEO_API_KEY: optionalEnvValues.data.GEO_API_KEY,
+  FEATURESERV_BBOX_CRS: optionalEnvValues.data.FEATURESERV_BBOX_CRS
 };
 
 const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
