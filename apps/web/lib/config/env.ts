@@ -35,13 +35,14 @@ const readRequiredEnv = (key: RequiredEnvKey): string => {
   throw new Error(message ?? `Missing required environment variable: ${key}`);
 };
 
-const featureservBboxSchema = z.enum(["CRS84", "EPSG:4326"]).optional();
+const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
+const featureservBboxSchema = z.enum(featureservBboxOptions).optional();
 
 const readOptionalFeatureServCrs = () => {
   const parsed = featureservBboxSchema.safeParse(process.env.FEATURESERV_BBOX_CRS);
 
   if (!parsed.success) {
-    const validValues = featureservBboxSchema.options.join(", ");
+    const validValues = featureservBboxOptions.join(", ");
     throw new Error(
       `Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${validValues}. Received: ${process.env.FEATURESERV_BBOX_CRS}`,
       { cause: parsed.error }
