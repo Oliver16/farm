@@ -7,13 +7,34 @@ import { useSupabase } from "./AppProviders";
 
 type ForeignKeyField = "farm_id" | "building_id" | "greenhouse_id";
 
+type SelectOption = { value: string; label: string };
+
 type LayerField = {
   name: string;
   label: string;
   required?: boolean;
   input?: "text" | "select";
   optionKey?: ForeignKeyField;
+  options?: SelectOption[];
+  placeholder?: string;
 };
+
+const buildingTypeOptions: SelectOption[] = [
+  { value: "barn", label: "Barn" },
+  { value: "shop", label: "Shop" },
+  { value: "shed", label: "Shed" },
+  { value: "greenhouse", label: "Greenhouse" },
+  { value: "house", label: "House" },
+  { value: "other", label: "Other" }
+];
+
+const greenhouseAreaUseOptions: SelectOption[] = [
+  { value: "bench", label: "Bench" },
+  { value: "bed", label: "Bed" },
+  { value: "aisle", label: "Aisle" },
+  { value: "staging", label: "Staging" },
+  { value: "other", label: "Other" }
+];
 
 const fieldsByLayer: Record<LayerId, LayerField[]> = {
   farms: [
@@ -26,7 +47,14 @@ const fieldsByLayer: Record<LayerId, LayerField[]> = {
   ],
   buildings: [
     { name: "name", label: "Name" },
-    { name: "btype", label: "Building Type", required: true }
+    {
+      name: "btype",
+      label: "Building Type",
+      required: true,
+      input: "select",
+      options: buildingTypeOptions,
+      placeholder: "Select a building type"
+    }
   ],
   greenhouses: [
     { name: "name", label: "Name" },
@@ -39,7 +67,14 @@ const fieldsByLayer: Record<LayerId, LayerField[]> = {
   ],
   greenhouse_areas: [
     { name: "name", label: "Name" },
-    { name: "use_type", label: "Use Type", required: true },
+    {
+      name: "use_type",
+      label: "Use Type",
+      required: true,
+      input: "select",
+      options: greenhouseAreaUseOptions,
+      placeholder: "Select how this area is used"
+    },
     { name: "bench_id", label: "Bench ID" },
     {
       name: "greenhouse_id",
@@ -89,16 +124,29 @@ export const AttributePanel = () => {
   useEffect(() => {
     if (!selectedFeature) {
       setFormState({});
+      dispatchAttributes({});
       return;
     }
     const properties = (selectedFeature.properties ?? {}) as Record<string, string>;
     setFormState(properties);
+    dispatchAttributes(properties);
   }, [selectedFeature]);
 
   useEffect(() => {
-    if (activeOrgId) {
-      setFormState((prev) => ({ ...prev, org_id: activeOrgId }));
-    }
+    setFormState((prev) => {
+      if (activeOrgId) {
+        if (prev.org_id === activeOrgId) return prev;
+        const next = { ...prev, org_id: activeOrgId };
+        dispatchAttributes(next);
+        return next;
+      }
+
+      if (!prev.org_id) return prev;
+      const next = { ...prev };
+      delete next.org_id;
+      dispatchAttributes(next);
+      return next;
+    });
   }, [activeOrgId]);
 
   useEffect(() => {
@@ -181,6 +229,21 @@ export const AttributePanel = () => {
     window.dispatchEvent(new CustomEvent("map:draw:save"));
   };
 
+  const effectiveOrgId = formState.org_id ?? activeOrgId ?? "";
+
+  const hasMissingRequiredFields = fields.some((field) => {
+    if (!field.required) return false;
+    const rawValue = formState[field.name];
+    if (typeof rawValue !== "string") return true;
+    return rawValue.trim().length === 0;
+  });
+
+  const isSaveDisabled =
+    editMode !== "edit" ||
+    !selectedFeature ||
+    hasMissingRequiredFields ||
+    effectiveOrgId.trim().length === 0;
+
   if (!activeLayerId) {
     return <p>Select a layer to see attributes.</p>;
   }
@@ -193,11 +256,14 @@ export const AttributePanel = () => {
         {field.label}
         {field.required ? " *" : ""}
       </span>
-      {field.input === "select" && field.optionKey ? (
+      {field.input === "select" ? (
         <select
           value={formState[field.name] ?? ""}
           onChange={(event) => handleChange(field.name, event.target.value)}
-          disabled={editMode !== "edit" || loadingForeignKeys}
+          disabled={
+            editMode !== "edit" || (field.optionKey ? loadingForeignKeys : false)
+          }
+          required={field.required}
           style={{
             padding: "0.5rem",
             borderRadius: "0.5rem",
@@ -206,20 +272,32 @@ export const AttributePanel = () => {
             color: "inherit"
           }}
         >
-          <option value="">{loadingForeignKeys ? "Loading…" : "Select"}</option>
-          {(() => {
-            const options = foreignKeyOptions[field.optionKey] ?? [];
-            const currentValue = formState[field.name];
-            const enrichedOptions =
-              currentValue && !options.some((option) => option.id === currentValue)
-                ? [...options, { id: currentValue, name: currentValue }]
-                : options;
-            return enrichedOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ));
-          })()}
+          <option value="" disabled={field.required}>
+            {field.optionKey
+              ? loadingForeignKeys
+                ? "Loading…"
+                : field.placeholder ?? "Select"
+              : field.placeholder ?? "Select"}
+          </option>
+          {field.optionKey
+            ? (() => {
+                const options = foreignKeyOptions[field.optionKey] ?? [];
+                const currentValue = formState[field.name];
+                const enrichedOptions =
+                  currentValue && !options.some((option) => option.id === currentValue)
+                    ? [...options, { id: currentValue, name: currentValue }]
+                    : options;
+                return enrichedOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ));
+              })()
+            : (field.options ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
         </select>
       ) : (
         <input
@@ -227,6 +305,8 @@ export const AttributePanel = () => {
           value={formState[field.name] ?? ""}
           onChange={(event) => handleChange(field.name, event.target.value)}
           disabled={editMode !== "edit"}
+          placeholder={field.placeholder}
+          required={field.required}
           style={{
             padding: "0.5rem",
             borderRadius: "0.5rem",
@@ -253,21 +333,37 @@ export const AttributePanel = () => {
         style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         onSubmit={(event) => {
           event.preventDefault();
+          if (isSaveDisabled) {
+            if (!selectedFeature) {
+              pushToast({ type: "info", message: "Draw or select a feature to save." });
+            }
+            return;
+          }
           handleSave();
         }}
       >
         <input type="hidden" name="org_id" value={formState.org_id ?? activeOrgId ?? ""} />
         {fields.map(renderField)}
+        {editMode === "edit" && !selectedFeature ? (
+          <p style={{ fontSize: "0.75rem", color: "#fca5a5", margin: 0 }}>
+            Select a feature on the map before saving.
+          </p>
+        ) : null}
+        {editMode === "edit" && hasMissingRequiredFields ? (
+          <p style={{ fontSize: "0.75rem", color: "#fca5a5", margin: 0 }}>
+            Please complete all required fields marked with an asterisk (*).
+          </p>
+        ) : null}
         <button
           type="submit"
-          disabled={editMode !== "edit"}
+          disabled={isSaveDisabled}
           style={{
             padding: "0.5rem 0.75rem",
             borderRadius: "0.5rem",
             border: "1px solid rgba(34,197,94,0.6)",
-            background: editMode === "edit" ? "#22c55e" : "transparent",
-            color: editMode === "edit" ? "#022c22" : "inherit",
-            cursor: editMode !== "edit" ? "not-allowed" : "pointer"
+            background: !isSaveDisabled ? "#22c55e" : "transparent",
+            color: !isSaveDisabled ? "#022c22" : "inherit",
+            cursor: isSaveDisabled ? "not-allowed" : "pointer"
           }}
         >
           Save Attributes

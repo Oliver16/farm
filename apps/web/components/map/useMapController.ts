@@ -200,7 +200,12 @@ export const useMapController = () => {
     const handleSelectionChange = () => {
       const selection = draw.getSelected();
       if (selection.features.length > 0) {
-        setSelectedFeature(selection.features[0] as Feature);
+        const feature = selection.features[0] as Feature;
+        setSelectedFeature(feature);
+        attributesRef.current = feature.properties ?? {};
+      } else {
+        setSelectedFeature(undefined);
+        attributesRef.current = {};
       }
     };
 
@@ -270,8 +275,7 @@ export const useMapController = () => {
       }
       const currentDraw = drawRef.current;
       if (!currentDraw) return;
-      const selected =
-        currentDraw.getSelected().features[0] ?? currentDraw.getAll().features[0];
+      const selected = currentDraw.getSelected().features[0];
       if (!selected) {
         pushToast({ type: "info", message: "Draw or select a feature to save." });
         return;
