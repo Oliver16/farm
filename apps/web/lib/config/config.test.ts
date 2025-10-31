@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { registry } from "./index";
+import { getServerEnv } from "./env.server";
 
 describe("layer registry", () => {
   it("uses unique layer identifiers", () => {
@@ -15,6 +16,6 @@ describe("layer registry", () => {
     expect(registry.env.FEATURESERV_BASE).toBeTruthy();
     expect(registry.env.TILESERV_BASE).toBeTruthy();
     expect(registry.env.TITILER_BASE).toBeTruthy();
-    expect(registry.env.SUPABASE_SERVICE_ROLE_KEY).toBeTruthy();
+    expect(getServerEnv().SUPABASE_SERVICE_ROLE_KEY).toBeTruthy();
   });
 });

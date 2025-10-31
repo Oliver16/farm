@@ -3,17 +3,21 @@ import { NextRequest } from "next/server";
 import { registry } from "../../../../lib/config";
 import { GET } from "./route";
 
+const mockGetServerEnv = vi.fn(() => ({ SUPABASE_SERVICE_ROLE_KEY: "service-role" }));
+
+vi.mock("@/lib/config/env.server", () => ({
+  getServerEnv: mockGetServerEnv
+}));
+
 vi.stubGlobal("fetch", vi.fn());
 
 const mockFetch = fetch as unknown as ReturnType<typeof vi.fn>;
-
-const originalServiceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
 
 describe("features proxy", () => {
   beforeEach(() => {
     mockFetch.mockReset();
     registry.env.GEO_API_KEY = undefined;
-    registry.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    mockGetServerEnv.mockReturnValue({ SUPABASE_SERVICE_ROLE_KEY: "service-role" });
   });
 
   it("forwards org_id, bbox and clamps limit", async () => {
@@ -67,7 +71,7 @@ describe("features proxy", () => {
   });
 
   it("includes service role authorization headers", async () => {
-    registry.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+    mockGetServerEnv.mockReturnValue({ SUPABASE_SERVICE_ROLE_KEY: "service-role" });
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ features: [] }), { status: 200 })
     );

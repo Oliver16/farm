@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isLayerId, registry } from "@/lib/config";
+import { getServerEnv } from "@/lib/config/env.server";
 
 const ensureTrailingSlash = (value: string) => (value.endsWith("/") ? value : `${value}/`);
 const bboxRegex = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/;
@@ -61,11 +62,9 @@ export async function GET(request: NextRequest, { params }: { params: { layer: s
   }
 
   const headers: Record<string, string> = {};
-  const serviceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (serviceRoleKey) {
-    headers.apikey = serviceRoleKey;
-    headers.Authorization = `Bearer ${serviceRoleKey}`;
-  }
+  const { SUPABASE_SERVICE_ROLE_KEY } = getServerEnv();
+  headers.apikey = SUPABASE_SERVICE_ROLE_KEY;
+  headers.Authorization = `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
   if (registry.env.GEO_API_KEY) {
     headers["x-geo-key"] = registry.env.GEO_API_KEY;
   }
