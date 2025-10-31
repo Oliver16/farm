@@ -155,3 +155,44 @@ CREATE POLICY attachments_modify ON attachments
     FOR ALL
     USING (has_org_role(org_id, ARRAY['editor','admin','owner']::org_role[]))
     WITH CHECK (has_org_role(org_id, ARRAY['editor','admin','owner']::org_role[]));
+
+CREATE OR REPLACE FUNCTION public.ensure_tileserv_rls_policies(role_name TEXT DEFAULT 'tileserv')
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    target RECORD;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+        RETURN;
+    END IF;
+
+    FOR target IN
+        SELECT *
+        FROM (VALUES
+            ('farms', 'tileserv_can_read_farms'),
+            ('fields', 'tileserv_can_read_fields'),
+            ('buildings', 'tileserv_can_read_buildings'),
+            ('greenhouses', 'tileserv_can_read_greenhouses'),
+            ('greenhouse_areas', 'tileserv_can_read_greenhouse_areas')
+        ) AS policies(table_name, policy_name)
+    LOOP
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_policies
+            WHERE schemaname = 'public'
+              AND tablename = target.table_name
+              AND policyname = target.policy_name
+        ) THEN
+            EXECUTE format(
+                'CREATE POLICY %I ON public.%I FOR SELECT TO %I USING (true);',
+                target.policy_name,
+                target.table_name,
+                role_name
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
+
+SELECT public.ensure_tileserv_rls_policies();
