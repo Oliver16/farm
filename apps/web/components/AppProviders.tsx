@@ -17,7 +17,18 @@ export const useSupabase = () => {
 };
 
 export const AppProviders = ({ children }: { children: ReactNode }) => {
-  const [supabase] = useState(() => createBrowserSupabaseClient());
+  const [{ client: supabase, error: supabaseError }] = useState(() => {
+    try {
+      return { client: createBrowserSupabaseClient(), error: null } as const;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to initialize Supabase client due to a configuration error.";
+      console.error("Failed to create Supabase client", error);
+      return { client: null, error: message } as const;
+    }
+  });
 
   const swrConfig = useMemo(
     () => ({
@@ -26,6 +37,32 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
     }),
     []
   );
+
+  if (supabaseError) {
+    return (
+      <div
+        role="alert"
+        style={{
+          margin: "2rem auto",
+          maxWidth: "420px",
+          padding: "1.5rem",
+          borderRadius: "0.75rem",
+          border: "1px solid rgba(248, 113, 113, 0.4)",
+          background: "rgba(15, 23, 42, 0.8)",
+          color: "inherit",
+          textAlign: "center",
+          lineHeight: 1.5
+        }}
+      >
+        <h2 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>Configuration error</h2>
+        <p style={{ margin: 0 }}>
+          {supabaseError}
+          <br />
+          Set the Supabase environment variables and redeploy the application.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <SupabaseContext.Provider value={supabase}>
