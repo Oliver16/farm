@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { registry } from "../../../../lib/config";
 import { GET } from "./route";
@@ -6,14 +6,26 @@ import { GET } from "./route";
 vi.stubGlobal("fetch", vi.fn());
 
 const mockFetch = fetch as unknown as ReturnType<typeof vi.fn>;
+const SERVICE_ROLE_KEY = "service-role";
+const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const originalServiceRoleKey = registry.env.SUPABASE_SERVICE_ROLE_KEY;
+beforeAll(() => {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_ROLE_KEY;
+});
+
+afterAll(() => {
+  if (originalServiceRoleKey === undefined) {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  } else {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+  }
+});
 
 describe("features proxy", () => {
   beforeEach(() => {
     mockFetch.mockReset();
     registry.env.GEO_API_KEY = undefined;
-    registry.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_ROLE_KEY;
   });
 
   it("forwards org_id, bbox and clamps limit", async () => {
@@ -67,7 +79,6 @@ describe("features proxy", () => {
   });
 
   it("includes service role authorization headers", async () => {
-    registry.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ features: [] }), { status: 200 })
     );
@@ -79,8 +90,8 @@ describe("features proxy", () => {
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const headers = init?.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer service-role");
-    expect(headers.apikey).toBe("service-role");
+    expect(headers.Authorization).toBe(`Bearer ${SERVICE_ROLE_KEY}`);
+    expect(headers.apikey).toBe(SERVICE_ROLE_KEY);
   });
 
   it("returns a friendly message on authorization failures", async () => {

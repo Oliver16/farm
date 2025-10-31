@@ -6,8 +6,7 @@ const requiredEnvSchema = z.object({
   NEXT_PUBLIC_BASEMAP_STYLE_URL: z.string().min(1),
   FEATURESERV_BASE: z.string().url(),
   TILESERV_BASE: z.string().url(),
-  TITILER_BASE: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1)
+  TITILER_BASE: z.string().url()
 });
 
 const optionalEnvSchema = z.object({
@@ -21,8 +20,7 @@ const requiredEnvValues = requiredEnvSchema.safeParse({
   NEXT_PUBLIC_BASEMAP_STYLE_URL: process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
   FEATURESERV_BASE: process.env.FEATURESERV_BASE,
   TILESERV_BASE: process.env.TILESERV_BASE,
-  TITILER_BASE: process.env.TITILER_BASE,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+  TITILER_BASE: process.env.TITILER_BASE
 });
 
 if (!requiredEnvValues.success) {
