@@ -1,19 +1,20 @@
 import { z } from "zod";
 
-const requiredEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  NEXT_PUBLIC_BASEMAP_STYLE_URL: z.string().min(1),
-  FEATURESERV_BASE: z.string().url(),
-  TILESERV_BASE: z.string().url(),
-  TITILER_BASE: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1)
-});
+const requiredEnvReaders = {
+  NEXT_PUBLIC_SUPABASE_URL: () => process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: () => process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL,
+  FEATURESERV_BASE: () => process.env.FEATURESERV_BASE,
+  TILESERV_BASE: () => process.env.TILESERV_BASE,
+  TITILER_BASE: () => process.env.TITILER_BASE,
+  SUPABASE_SERVICE_ROLE_KEY: () => process.env.SUPABASE_SERVICE_ROLE_KEY
+} as const;
 
-const optionalEnvSchema = z.object({
-  GEO_API_KEY: z.string().optional(),
-  FEATURESERV_BBOX_CRS: z.enum(["CRS84", "EPSG:4326"]).optional()
-});
+const requiredEnvKeys = Object.keys(requiredEnvReaders) as Array<
+  keyof typeof requiredEnvReaders
+>;
+
+type RequiredEnvKey = keyof typeof requiredEnvReaders;
 
 const requiredEnvValues = requiredEnvSchema.safeParse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,12 +26,8 @@ const requiredEnvValues = requiredEnvSchema.safeParse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
 });
 
-if (!requiredEnvValues.success) {
-  const missingKeys = requiredEnvValues.error.issues
-    .map((issue) => issue.path[0])
-    .filter((key): key is string => typeof key === "string");
-  const uniqueMissingKeys = [...new Set(missingKeys)];
-  const message = `Missing required environment variables: ${uniqueMissingKeys.join(", ")}`;
+const missingRequiredEnvMessage = () => {
+  const missingKeys = requiredEnvKeys.filter((key) => !isPresent(requiredEnvReaders[key]()));
 
   throw new Error(message, { cause: requiredEnvValues.error });
 }
@@ -40,9 +37,11 @@ const optionalEnvValues = optionalEnvSchema.safeParse({
   FEATURESERV_BBOX_CRS: process.env.FEATURESERV_BBOX_CRS
 });
 
-if (!optionalEnvValues.success) {
-  throw optionalEnvValues.error;
-}
+const readRequiredEnv = (key: RequiredEnvKey): string => {
+  const value = requiredEnvReaders[key]();
+  if (isPresent(value)) {
+    return value;
+  }
 
 export const env = {
   ...requiredEnvValues.data,
@@ -79,32 +78,52 @@ export type AppEnv = {
   FEATURESERV_BBOX_CRS?: "CRS84" | "EPSG:4326";
 };
 
-export const env: AppEnv = {
-  get NEXT_PUBLIC_SUPABASE_URL() {
-    return readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+const env = {} as AppEnv;
+
+const defineRequiredProperty = (key: RequiredEnvKey) => ({
+  get(): string {
+    return readRequiredEnv(key);
   },
-  get NEXT_PUBLIC_SUPABASE_ANON_KEY() {
-    return readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  set(value: string) {
+    process.env[key] = value;
   },
-  get NEXT_PUBLIC_BASEMAP_STYLE_URL() {
-    return readRequiredEnv("NEXT_PUBLIC_BASEMAP_STYLE_URL");
+  enumerable: true
+});
+
+Object.defineProperties(env, {
+  NEXT_PUBLIC_SUPABASE_URL: defineRequiredProperty("NEXT_PUBLIC_SUPABASE_URL"),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: defineRequiredProperty("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: defineRequiredProperty("NEXT_PUBLIC_BASEMAP_STYLE_URL"),
+  FEATURESERV_BASE: defineRequiredProperty("FEATURESERV_BASE"),
+  TILESERV_BASE: defineRequiredProperty("TILESERV_BASE"),
+  TITILER_BASE: defineRequiredProperty("TITILER_BASE"),
+  SUPABASE_SERVICE_ROLE_KEY: defineRequiredProperty("SUPABASE_SERVICE_ROLE_KEY"),
+  GEO_API_KEY: {
+    get(): string | undefined {
+      return isPresent(process.env.GEO_API_KEY) ? process.env.GEO_API_KEY : undefined;
+    },
+    set(value: string | undefined) {
+      if (typeof value === "string") {
+        process.env.GEO_API_KEY = value;
+      } else {
+        delete process.env.GEO_API_KEY;
+      }
+    },
+    enumerable: true
   },
-  get FEATURESERV_BASE() {
-    return readRequiredEnv("FEATURESERV_BASE");
-  },
-  get TILESERV_BASE() {
-    return readRequiredEnv("TILESERV_BASE");
-  },
-  get TITILER_BASE() {
-    return readRequiredEnv("TITILER_BASE");
-  },
-  get SUPABASE_SERVICE_ROLE_KEY() {
-    return readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  },
-  get GEO_API_KEY() {
-    return isPresent(process.env.GEO_API_KEY) ? process.env.GEO_API_KEY : undefined;
-  },
-  get FEATURESERV_BBOX_CRS() {
-    return readOptionalFeatureServCrs();
+  FEATURESERV_BBOX_CRS: {
+    get(): "CRS84" | "EPSG:4326" | undefined {
+      return readOptionalFeatureServCrs();
+    },
+    set(value: "CRS84" | "EPSG:4326" | undefined) {
+      if (typeof value === "string") {
+        process.env.FEATURESERV_BBOX_CRS = value;
+      } else {
+        delete process.env.FEATURESERV_BBOX_CRS;
+      }
+    },
+    enumerable: true
   }
-};
+});
+
+export { env };
