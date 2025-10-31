@@ -14,7 +14,6 @@ const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
 const featureservBboxSchema = z.enum(featureservBboxOptions);
 
 type RequiredEnvKey = (typeof requiredEnvKeys)[number];
-
 type EnvKey =
   | RequiredEnvKey
   | "GEO_API_KEY"
@@ -35,51 +34,53 @@ export type AppEnv = {
 };
 
 const overrides: Partial<Record<EnvKey, AppEnv[EnvKey]>> = {};
-
 const hasOverride = (key: EnvKey) => Object.prototype.hasOwnProperty.call(overrides, key);
+const isPresent = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
-const isPresent = (value: unknown): value is string => typeof value === "string" && value.length > 0;
+/**
+ * Static capture so Next.js inlines public envs into the client bundle.
+ * Falls back to SUPABASE_URL / SUPABASE_ANON_KEY if provided by the integration.
+ */
+const STATIC_PUBLIC = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY:
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_BASEMAP_STYLE_URL: process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL
+} as const;
 
 const readRequiredEnv = (key: RequiredEnvKey): string => {
   if (hasOverride(key)) {
     const value = overrides[key];
-    if (!isPresent(value)) {
-      throw new Error(`Missing required environment variable: ${key}`);
-    }
+    if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
     return value;
   }
 
-  const raw = process.env[key];
-  if (!isPresent(raw)) {
-    throw new Error(`Missing required environment variable: ${key}`);
+  // Public keys must be statically captured for the browser bundle
+  if (key in STATIC_PUBLIC) {
+    const value = (STATIC_PUBLIC as Record<string, string | undefined>)[key];
+    if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
+    return value;
   }
+
+  // Server-only keys can be read dynamically at runtime
+  const raw = process.env[key];
+  if (!isPresent(raw)) throw new Error(`Missing required environment variable: ${key}`);
   return raw;
 };
 
 const readGeoApiKey = (): string | undefined => {
-  if (hasOverride("GEO_API_KEY")) {
-    return overrides.GEO_API_KEY;
-  }
-
+  if (hasOverride("GEO_API_KEY")) return overrides.GEO_API_KEY;
   const raw = process.env.GEO_API_KEY;
   return isPresent(raw) ? raw : undefined;
 };
 
 const parseFeatureServCrs = (value: string | undefined): AppEnv["FEATURESERV_BBOX_CRS"] => {
-  if (!isPresent(value)) {
-    return undefined;
-  }
-
+  if (!isPresent(value)) return undefined;
   const parsed = featureservBboxSchema.safeParse(value);
-
   if (!parsed.success) {
-    const validValues = featureservBboxOptions.join(", ");
-    throw new Error(
-      `Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${validValues}. Received: ${value}`,
-      { cause: parsed.error }
-    );
+    const valid = featureservBboxOptions.join(", ");
+    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${value}`, { cause: parsed.error });
   }
-
   return parsed.data;
 };
 
@@ -87,50 +88,26 @@ const readFeatureServCrs = (): AppEnv["FEATURESERV_BBOX_CRS"] => {
   if (hasOverride("FEATURESERV_BBOX_CRS")) {
     return overrides.FEATURESERV_BBOX_CRS as AppEnv["FEATURESERV_BBOX_CRS"];
   }
-
   return parseFeatureServCrs(process.env.FEATURESERV_BBOX_CRS);
 };
 
 const setRequiredOverride = (key: RequiredEnvKey, value: string) => {
-  if (!isPresent(value)) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-
+  if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
   overrides[key] = value;
 };
-
-const clearOverride = (key: EnvKey) => {
-  delete overrides[key];
-};
-
+const clearOverride = (key: EnvKey) => { delete overrides[key]; };
 const setGeoApiOverride = (value: string | undefined) => {
-  if (value === undefined) {
-    clearOverride("GEO_API_KEY");
-    return;
-  }
-
-  if (!isPresent(value)) {
-    throw new Error("GEO_API_KEY cannot be empty");
-  }
-
+  if (value === undefined) return clearOverride("GEO_API_KEY");
+  if (!isPresent(value)) throw new Error("GEO_API_KEY cannot be empty");
   overrides.GEO_API_KEY = value;
 };
-
 const setFeatureServCrsOverride = (value: AppEnv["FEATURESERV_BBOX_CRS"]) => {
-  if (value === undefined) {
-    clearOverride("FEATURESERV_BBOX_CRS");
-    return;
-  }
-
+  if (value === undefined) return clearOverride("FEATURESERV_BBOX_CRS");
   const parsed = featureservBboxSchema.safeParse(value);
   if (!parsed.success) {
-    const validValues = featureservBboxOptions.join(", ");
-    throw new Error(
-      `Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${validValues}. Received: ${value}`,
-      { cause: parsed.error }
-    );
+    const valid = featureservBboxOptions.join(", ");
+    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${String(value)}`, { cause: parsed.error });
   }
-
   overrides.FEATURESERV_BBOX_CRS = parsed.data;
 };
 
@@ -138,94 +115,49 @@ const env = {} as AppEnv;
 
 Object.defineProperties(env, {
   NEXT_PUBLIC_SUPABASE_URL: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-    },
-    set(value: string) {
-      setRequiredOverride("NEXT_PUBLIC_SUPABASE_URL", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"); },
+    set(v: string) { setRequiredOverride("NEXT_PUBLIC_SUPABASE_URL", v); }
   },
   NEXT_PUBLIC_SUPABASE_ANON_KEY: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-    },
-    set(value: string) {
-      setRequiredOverride("NEXT_PUBLIC_SUPABASE_ANON_KEY", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"); },
+    set(v: string) { setRequiredOverride("NEXT_PUBLIC_SUPABASE_ANON_KEY", v); }
   },
   NEXT_PUBLIC_BASEMAP_STYLE_URL: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("NEXT_PUBLIC_BASEMAP_STYLE_URL");
-    },
-    set(value: string) {
-      setRequiredOverride("NEXT_PUBLIC_BASEMAP_STYLE_URL", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("NEXT_PUBLIC_BASEMAP_STYLE_URL"); },
+    set(v: string) { setRequiredOverride("NEXT_PUBLIC_BASEMAP_STYLE_URL", v); }
   },
   FEATURESERV_BASE: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("FEATURESERV_BASE");
-    },
-    set(value: string) {
-      setRequiredOverride("FEATURESERV_BASE", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("FEATURESERV_BASE"); },
+    set(v: string) { setRequiredOverride("FEATURESERV_BASE", v); }
   },
   TILESERV_BASE: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("TILESERV_BASE");
-    },
-    set(value: string) {
-      setRequiredOverride("TILESERV_BASE", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("TILESERV_BASE"); },
+    set(v: string) { setRequiredOverride("TILESERV_BASE", v); }
   },
   TITILER_BASE: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("TITILER_BASE");
-    },
-    set(value: string) {
-      setRequiredOverride("TITILER_BASE", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("TITILER_BASE"); },
+    set(v: string) { setRequiredOverride("TITILER_BASE", v); }
   },
   SUPABASE_SERVICE_ROLE_KEY: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-    },
-    set(value: string) {
-      setRequiredOverride("SUPABASE_SERVICE_ROLE_KEY", value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"); },
+    set(v: string) { setRequiredOverride("SUPABASE_SERVICE_ROLE_KEY", v); }
   },
   GEO_API_KEY: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readGeoApiKey();
-    },
-    set(value: string | undefined) {
-      setGeoApiOverride(value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readGeoApiKey(); },
+    set(v: string | undefined) { setGeoApiOverride(v); }
   },
   FEATURESERV_BBOX_CRS: {
-    enumerable: true,
-    configurable: true,
-    get() {
-      return readFeatureServCrs();
-    },
-    set(value: AppEnv["FEATURESERV_BBOX_CRS"]) {
-      setFeatureServCrsOverride(value);
-    }
+    enumerable: true, configurable: true,
+    get() { return readFeatureServCrs(); },
+    set(v: AppEnv["FEATURESERV_BBOX_CRS"]) { setFeatureServCrsOverride(v); }
   }
 });
 
