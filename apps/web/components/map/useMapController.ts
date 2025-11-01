@@ -214,11 +214,11 @@ export const useMapController = () => {
     const handleMapClick = async (event: maplibregl.MapLayerMouseEvent) => {
       const orgId = activeOrgIdRef.current;
       if (!orgId) return;
-      const layers = registry.layerList.flatMap((layer) => [
-        `${layer.id}-fill`,
-        `${layer.id}-line`
-      ]);
-      const features = map.queryRenderedFeatures(event.point, { layers });
+      const visibleLayerIds = registry.layerList
+        .filter((l) => layerVisibilityRef.current?.[l.id])
+        .flatMap((l) => [`${l.id}-fill`, `${l.id}-line`])
+        .filter((id) => map.getLayer(id));
+      const features = map.queryRenderedFeatures(event.point, { layers: visibleLayerIds });
       if (!features.length) return;
       const tileFeature = features[0];
       const layerId = identifyLayerFromId(tileFeature.layer.id ?? "");
@@ -227,8 +227,8 @@ export const useMapController = () => {
       const layerConfig = registry.vectorLayers[layerId];
       try {
         const detail = await jsonFetcher<FeatureCollection>(
-          `/api/features/${layerConfig.collectionId}?org_id=${orgId}&filter=${encodeURIComponent(
-            JSON.stringify({ id: featureId })
+          `/api/features/${layerConfig.collectionId}?org_id=${orgId}&where=${encodeURIComponent(
+            `id='${featureId}'`
           )}&limit=1`
         );
         if (detail.features.length > 0) {

@@ -48,8 +48,11 @@ const readRequiredEnv = (key: RequiredEnvKey): string => {
     return v;
   }
   // Public keys: read from static capture (works in browser bundle)
+  const isServer = typeof window === "undefined";
   if (Object.prototype.hasOwnProperty.call(STATIC_PUBLIC, key)) {
-    const v = (STATIC_PUBLIC as Record<string, string | undefined>)[key];
+    const v = isServer
+      ? (process.env[key] ?? (STATIC_PUBLIC as Record<string, string | undefined>)[key])
+      : (STATIC_PUBLIC as Record<string, string | undefined>)[key];
     if (!isPresent(v)) throw new Error(`Missing required environment variable: ${key}`);
     return v;
   }
