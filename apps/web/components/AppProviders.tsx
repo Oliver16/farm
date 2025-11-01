@@ -3,7 +3,7 @@
 import { SWRConfig } from "swr";
 import type { ReactNode } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { TypedSupabaseClient } from "@/lib/supabase/types";
 
 const SupabaseContext = createContext<TypedSupabaseClient | null>(null);
@@ -17,18 +17,22 @@ export const useSupabase = () => {
 };
 
 export const AppProviders = ({ children }: { children: ReactNode }) => {
-  const [{ client: supabase, error: supabaseError }] = useState(() => {
+  // IMPORTANT: don't create the browser client during render/SSR
+  const [supabase, setSupabase] = useState<TypedSupabaseClient | null>(null);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
+
+  useEffect(() => {
     try {
-      return { client: createBrowserSupabaseClient(), error: null } as const;
+      setSupabase(createBrowserSupabaseClient());
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : "Failed to initialize Supabase client due to a configuration error.";
       console.error("Failed to create Supabase client", error);
-      return { client: null, error: message } as const;
+      setSupabaseError(message);
     }
-  });
+  }, []);
 
   const swrConfig = useMemo(
     () => ({
@@ -63,6 +67,9 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
       </div>
     );
   }
+
+  // Render nothing until we’re mounted and the client exists. Prevents SSR crash.
+  if (!supabase) return null;
 
   return (
     <SupabaseContext.Provider value={supabase}>
