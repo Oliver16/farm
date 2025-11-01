@@ -14,11 +14,7 @@ const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
 const featureservBboxSchema = z.enum(featureservBboxOptions);
 
 type RequiredEnvKey = (typeof requiredEnvKeys)[number];
-type EnvKey =
-  | RequiredEnvKey
-  | "GEO_API_KEY"
-  | "FEATURESERV_BBOX_CRS";
-
+type EnvKey = RequiredEnvKey | "GEO_API_KEY" | "FEATURESERV_BBOX_CRS";
 type FeatureServBboxCrs = (typeof featureservBboxOptions)[number];
 
 export type AppEnv = {
@@ -34,13 +30,10 @@ export type AppEnv = {
 };
 
 const overrides: Partial<Record<EnvKey, AppEnv[EnvKey]>> = {};
-const hasOverride = (key: EnvKey) => Object.prototype.hasOwnProperty.call(overrides, key);
+const hasOverride = (k: EnvKey) => Object.prototype.hasOwnProperty.call(overrides, k);
 const isPresent = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
-/**
- * Static capture so Next.js inlines public envs into the client bundle.
- * Falls back to SUPABASE_URL / SUPABASE_ANON_KEY if provided by the integration.
- */
+/** Static capture so Next.js inlines public envs client-side (+ fallback to SUPABASE_*). */
 const STATIC_PUBLIC = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY:
@@ -50,63 +43,55 @@ const STATIC_PUBLIC = {
 
 const readRequiredEnv = (key: RequiredEnvKey): string => {
   if (hasOverride(key)) {
-    const value = overrides[key];
-    if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
-    return value;
+    const v = overrides[key];
+    if (!isPresent(v)) throw new Error(`Missing required environment variable: ${key}`);
+    return v;
   }
-
-  // Public keys must be statically captured for the browser bundle
-  if (key in STATIC_PUBLIC) {
-    const value = (STATIC_PUBLIC as Record<string, string | undefined>)[key];
-    if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
-    return value;
+  // Public keys: read from static capture (works in browser bundle)
+  if (Object.prototype.hasOwnProperty.call(STATIC_PUBLIC, key)) {
+    const v = (STATIC_PUBLIC as Record<string, string | undefined>)[key];
+    if (!isPresent(v)) throw new Error(`Missing required environment variable: ${key}`);
+    return v;
   }
-
-  // Server-only keys can be read dynamically at runtime
+  // Server-only keys: dynamic is fine
   const raw = process.env[key];
   if (!isPresent(raw)) throw new Error(`Missing required environment variable: ${key}`);
   return raw;
 };
 
-const readGeoApiKey = (): string | undefined => {
-  if (hasOverride("GEO_API_KEY")) return overrides.GEO_API_KEY;
-  const raw = process.env.GEO_API_KEY;
-  return isPresent(raw) ? raw : undefined;
-};
+const readGeoApiKey = (): string | undefined =>
+  hasOverride("GEO_API_KEY") ? overrides.GEO_API_KEY : (process.env.GEO_API_KEY || undefined);
 
-const parseFeatureServCrs = (value: string | undefined): AppEnv["FEATURESERV_BBOX_CRS"] => {
-  if (!isPresent(value)) return undefined;
-  const parsed = featureservBboxSchema.safeParse(value);
+const parseFeatureServCrs = (v: string | undefined): AppEnv["FEATURESERV_BBOX_CRS"] => {
+  if (!isPresent(v)) return undefined;
+  const parsed = featureservBboxSchema.safeParse(v);
   if (!parsed.success) {
     const valid = featureservBboxOptions.join(", ");
-    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${value}`, { cause: parsed.error });
+    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${v}`, { cause: parsed.error });
   }
   return parsed.data;
 };
+const readFeatureServCrs = (): AppEnv["FEATURESERV_BBOX_CRS"] =>
+  hasOverride("FEATURESERV_BBOX_CRS")
+    ? (overrides.FEATURESERV_BBOX_CRS as AppEnv["FEATURESERV_BBOX_CRS"])
+    : parseFeatureServCrs(process.env.FEATURESERV_BBOX_CRS);
 
-const readFeatureServCrs = (): AppEnv["FEATURESERV_BBOX_CRS"] => {
-  if (hasOverride("FEATURESERV_BBOX_CRS")) {
-    return overrides.FEATURESERV_BBOX_CRS as AppEnv["FEATURESERV_BBOX_CRS"];
-  }
-  return parseFeatureServCrs(process.env.FEATURESERV_BBOX_CRS);
+const setRequiredOverride = (k: RequiredEnvKey, v: string) => {
+  if (!isPresent(v)) throw new Error(`Missing required environment variable: ${k}`);
+  overrides[k] = v;
 };
-
-const setRequiredOverride = (key: RequiredEnvKey, value: string) => {
-  if (!isPresent(value)) throw new Error(`Missing required environment variable: ${key}`);
-  overrides[key] = value;
+const clearOverride = (k: EnvKey) => { delete overrides[k]; };
+const setGeoApiOverride = (v: string | undefined) => {
+  if (v === undefined) return clearOverride("GEO_API_KEY");
+  if (!isPresent(v)) throw new Error("GEO_API_KEY cannot be empty");
+  overrides.GEO_API_KEY = v;
 };
-const clearOverride = (key: EnvKey) => { delete overrides[key]; };
-const setGeoApiOverride = (value: string | undefined) => {
-  if (value === undefined) return clearOverride("GEO_API_KEY");
-  if (!isPresent(value)) throw new Error("GEO_API_KEY cannot be empty");
-  overrides.GEO_API_KEY = value;
-};
-const setFeatureServCrsOverride = (value: AppEnv["FEATURESERV_BBOX_CRS"]) => {
-  if (value === undefined) return clearOverride("FEATURESERV_BBOX_CRS");
-  const parsed = featureservBboxSchema.safeParse(value);
+const setFeatureServCrsOverride = (v: AppEnv["FEATURESERV_BBOX_CRS"]) => {
+  if (v === undefined) return clearOverride("FEATURESERV_BBOX_CRS");
+  const parsed = featureservBboxSchema.safeParse(v);
   if (!parsed.success) {
     const valid = featureservBboxOptions.join(", ");
-    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${String(value)}`, { cause: parsed.error });
+    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${String(v)}`, { cause: parsed.error });
   }
   overrides.FEATURESERV_BBOX_CRS = parsed.data;
 };
