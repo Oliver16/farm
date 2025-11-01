@@ -6,7 +6,7 @@ import { registry, type LayerId } from "../../lib/config";
 import { bboxToQueryString, type BboxTuple } from "../../lib/utils/bbox";
 
 const PAGE_LIMIT = 200;
-const MIN_FETCH_ZOOM = 10; // avoid huge bboxes
+const MIN_FETCH_ZOOM = 8; // avoid huge bboxes
 const MAX_DEG2 = 25; // area guard (deg^2)
 const now = () => Date.now();
 
