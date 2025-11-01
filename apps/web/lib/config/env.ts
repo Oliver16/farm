@@ -6,16 +6,18 @@ const requiredEnvKeys = [
   "NEXT_PUBLIC_BASEMAP_STYLE_URL",
   "FEATURESERV_BASE",
   "TILESERV_BASE",
-  "TITILER_BASE",
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "TITILER_BASE"
 ] as const;
 
 const featureservBboxOptions = ["CRS84", "EPSG:4326"] as const;
 const featureservBboxSchema = z.enum(featureservBboxOptions);
 
 type RequiredEnvKey = (typeof requiredEnvKeys)[number];
-type EnvKey = RequiredEnvKey | "GEO_API_KEY" | "FEATURESERV_BBOX_CRS";
-type FeatureServBboxCrs = (typeof featureservBboxOptions)[number];
+type EnvKey =
+  | RequiredEnvKey
+  | "GEO_API_KEY"
+  | "FEATURESERV_BBOX_CRS"
+  | "SUPABASE_SERVICE_ROLE_KEY"; // optional (server-only)
 
 export type AppEnv = {
   NEXT_PUBLIC_SUPABASE_URL: string;
@@ -24,9 +26,9 @@ export type AppEnv = {
   FEATURESERV_BASE: string;
   TILESERV_BASE: string;
   TITILER_BASE: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string; // <-- optional now
   GEO_API_KEY?: string;
-  FEATURESERV_BBOX_CRS?: FeatureServBboxCrs;
+  FEATURESERV_BBOX_CRS?: (typeof featureservBboxOptions)[number];
 };
 
 const overrides: Partial<Record<EnvKey, AppEnv[EnvKey]>> = {};
@@ -56,21 +58,23 @@ const readRequiredEnv = (key: RequiredEnvKey): string => {
     if (!isPresent(v)) throw new Error(`Missing required environment variable: ${key}`);
     return v;
   }
-  // Server-only keys: dynamic is fine
+  // Server-only required keys: read dynamically at runtime
   const raw = process.env[key];
   if (!isPresent(raw)) throw new Error(`Missing required environment variable: ${key}`);
   return raw;
 };
 
 const readGeoApiKey = (): string | undefined =>
-  hasOverride("GEO_API_KEY") ? overrides.GEO_API_KEY : (process.env.GEO_API_KEY || undefined);
+  hasOverride("GEO_API_KEY") ? (overrides.GEO_API_KEY as string | undefined) : process.env.GEO_API_KEY || undefined;
 
 const parseFeatureServCrs = (v: string | undefined): AppEnv["FEATURESERV_BBOX_CRS"] => {
   if (!isPresent(v)) return undefined;
   const parsed = featureservBboxSchema.safeParse(v);
   if (!parsed.success) {
     const valid = featureservBboxOptions.join(", ");
-    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${v}`, { cause: parsed.error });
+    throw new Error(
+      `Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${v}`
+    );
   }
   return parsed.data;
 };
@@ -94,10 +98,18 @@ const setFeatureServCrsOverride = (v: AppEnv["FEATURESERV_BBOX_CRS"]) => {
   const parsed = featureservBboxSchema.safeParse(v);
   if (!parsed.success) {
     const valid = featureservBboxOptions.join(", ");
-    throw new Error(`Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${String(v)}`, { cause: parsed.error });
+    throw new Error(
+      `Invalid FEATURESERV_BBOX_CRS value. Expected one of: ${valid}. Received: ${String(v)}`
+    );
   }
   overrides.FEATURESERV_BBOX_CRS = parsed.data;
 };
+
+// NEW: optional reader for service role key (never throws here)
+const readServiceRoleKey = (): string | undefined =>
+  hasOverride("SUPABASE_SERVICE_ROLE_KEY")
+    ? (overrides.SUPABASE_SERVICE_ROLE_KEY as string | undefined)
+    : process.env.SUPABASE_SERVICE_ROLE_KEY || undefined;
 
 const env = {} as AppEnv;
 
@@ -132,10 +144,15 @@ Object.defineProperties(env, {
     get() { return readRequiredEnv("TITILER_BASE"); },
     set(v: string) { setRequiredOverride("TITILER_BASE", v); }
   },
+  // OPTIONAL: do not throw from the registry on missing service role
   SUPABASE_SERVICE_ROLE_KEY: {
     enumerable: true, configurable: true,
-    get() { return readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"); },
-    set(v: string) { setRequiredOverride("SUPABASE_SERVICE_ROLE_KEY", v); }
+    get() { return readServiceRoleKey(); },
+    set(v: string | undefined) {
+      if (v === undefined) return clearOverride("SUPABASE_SERVICE_ROLE_KEY");
+      if (!isPresent(v)) throw new Error("SUPABASE_SERVICE_ROLE_KEY cannot be empty");
+      overrides.SUPABASE_SERVICE_ROLE_KEY = v;
+    }
   },
   GEO_API_KEY: {
     enumerable: true, configurable: true,
